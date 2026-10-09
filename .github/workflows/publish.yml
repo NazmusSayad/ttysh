@@ -5,7 +5,7 @@ on:
     types: [published]
 
 permissions:
-  contents: write
+  contents: read
   id-token: write
 
 jobs:
@@ -59,8 +59,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
-        with:
-          ref: ${{ github.event.repository.default_branch }}
 
       - uses: actions/setup-node@v5
         with:
@@ -68,19 +66,13 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - run: npm install -g npm@latest version-patch
-
-      - name: Set the version
-        run: |
-          version-patch node "${{ github.event.release.tag_name }}" --prefix v --pkg-file packages/ttysh/package.json
-          version-patch cargo "${{ github.event.release.tag_name }}" --prefix v --manifest-file apps/server/Cargo.toml
-          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-            commit -m "chore(release): ${{ github.event.release.tag_name }}" packages/ttysh/package.json apps/server/Cargo.toml Cargo.lock
+      - run: node scripts/build-npm.mts
+      - run: version-patch node "${{ github.event.release.tag_name }}" --prefix v --pkg-file dist/npm/package.json
 
       - uses: actions/download-artifact@v4
         with:
-          path: packages/ttysh/bin
-      - run: chmod +x packages/ttysh/bin/*/ttysh
+          path: dist/npm/bin
+      - run: chmod +x dist/npm/bin/*/ttysh
 
       - run: npm publish --access public
-        working-directory: packages/ttysh
-      - run: git pull --rebase && git push
+        working-directory: dist/npm

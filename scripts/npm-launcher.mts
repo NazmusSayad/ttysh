@@ -2,7 +2,7 @@
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 
-const binaries = {
+const binaries: Record<string, string> = {
   'darwin-arm64': 'ttysh',
   'darwin-x64': 'ttysh',
   'linux-arm64': 'ttysh',

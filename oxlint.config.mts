@@ -21,7 +21,7 @@ export default defineConfig({
   },
   overrides: [
     {
-      files: ['packages/ttysh/bin/**'],
+      files: ['scripts/**'],
       env: { node: true },
     },
     {
