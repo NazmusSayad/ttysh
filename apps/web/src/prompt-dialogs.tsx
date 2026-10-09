@@ -126,83 +126,81 @@ export function FolderDialog(props: {
       }}
     >
       <DialogContent
-        className="sm:max-w-lg"
+        className="gap-0 overflow-hidden p-0 sm:max-w-lg"
         showCloseButton={false}
         aria-describedby={undefined}
       >
         <DialogTitle className="sr-only">Group folder</DialogTitle>
-        <div className="grid gap-2">
-          <div className="overflow-hidden rounded-lg border">
-            <div className="flex items-center gap-1 border-b p-1">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Parent folder"
-                disabled={!listing?.parent}
-                onClick={() => {
-                  if (listing?.parent) open(listing.parent)
-                }}
-              >
-                <HugeiconsIcon icon={ArrowUp01Icon} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Home folder"
-                onClick={() => open('~')}
-              >
-                <HugeiconsIcon icon={Home01Icon} />
-              </Button>
-              <p
-                className="min-w-0 flex-1 truncate px-1.5 text-left font-mono text-xs [direction:rtl]"
-                title={listing?.path}
-              >
-                <bdi>{listing?.path}</bdi>
-              </p>
-              <DialogClose asChild>
-                <Button variant="ghost" size="icon-sm" aria-label="Close">
-                  <HugeiconsIcon icon={Cancel01Icon} />
-                </Button>
-              </DialogClose>
-            </div>
-            <label className="flex h-9 items-center gap-2.5 border-b px-3">
+        <div className="flex items-center gap-1 border-b p-1">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Parent folder"
+            disabled={!listing?.parent}
+            onClick={() => {
+              if (listing?.parent) open(listing.parent)
+            }}
+          >
+            <HugeiconsIcon icon={ArrowUp01Icon} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Home folder"
+            onClick={() => open('~')}
+          >
+            <HugeiconsIcon icon={Home01Icon} />
+          </Button>
+          <p
+            className="min-w-0 flex-1 truncate px-1.5 text-left font-mono text-xs [direction:rtl]"
+            title={listing?.path}
+          >
+            <bdi>{listing?.path}</bdi>
+          </p>
+          <DialogClose asChild>
+            <Button variant="ghost" size="icon-sm" aria-label="Close">
+              <HugeiconsIcon icon={Cancel01Icon} />
+            </Button>
+          </DialogClose>
+        </div>
+        <label className="flex h-9 items-center gap-2.5 border-b px-3">
+          <HugeiconsIcon
+            icon={Search01Icon}
+            className="text-muted-foreground size-4 flex-none"
+          />
+          <input
+            className="placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-sm outline-none"
+            placeholder="Search this folder"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </label>
+        <div className="h-72 overflow-y-auto p-1">
+          {directories?.map((directory) => (
+            <button
+              key={directory.path}
+              className="hover:bg-muted flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition-colors"
+              onClick={() => open(directory.path)}
+            >
               <HugeiconsIcon
-                icon={Search01Icon}
+                icon={Folder01Icon}
                 className="text-muted-foreground size-4 flex-none"
               />
-              <input
-                className="placeholder:text-muted-foreground min-w-0 flex-1 bg-transparent text-sm outline-none"
-                placeholder="Search this folder"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-            </label>
-            <div className="h-72 overflow-y-auto p-1">
-              {directories?.map((directory) => (
-                <button
-                  key={directory.path}
-                  className="hover:bg-muted flex h-8 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition-colors"
-                  onClick={() => open(directory.path)}
-                >
-                  <HugeiconsIcon
-                    icon={Folder01Icon}
-                    className="text-muted-foreground size-4 flex-none"
-                  />
-                  <span className="truncate">{directory.name}</span>
-                </button>
-              ))}
-              {directories?.length === 0 && (
-                <p className="text-muted-foreground grid h-full place-items-center text-sm">
-                  {search === '' ? 'No folders here' : 'No matching folders'}
-                </p>
-              )}
-            </div>
-          </div>
-          {error && (
-            <p className="text-destructive text-sm break-all">{error}</p>
+              <span className="truncate">{directory.name}</span>
+            </button>
+          ))}
+          {directories?.length === 0 && (
+            <p className="text-muted-foreground grid h-full place-items-center text-sm">
+              {search === '' ? 'No folders here' : 'No matching folders'}
+            </p>
           )}
         </div>
-        <DialogFooter>
+        {error && (
+          <p className="text-destructive border-t px-3 py-2 text-sm break-all">
+            {error}
+          </p>
+        )}
+        <DialogFooter className="border-t p-3">
           {props.directory !== null && (
             <Button
               variant="ghost"
