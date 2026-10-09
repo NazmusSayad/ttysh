@@ -1,10 +1,9 @@
 {
   "name": "web",
-  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
     "typecheck": "tsc"
   },
   "dependencies": {

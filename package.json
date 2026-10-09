@@ -1,6 +1,4 @@
 {
-  "name": "ttysh-monorepo",
-  "private": true,
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm --filter web build && pnpm --filter server build",

@@ -8,8 +8,6 @@ const output = path.join(root, 'dist', 'npm')
 const manifest = {
   name: 'ttysh',
   version: '0.0.0',
-  description:
-    'Browser terminal with groups and tabs that keeps your shells running',
   type: 'module',
   license: 'MIT',
   repository: {
@@ -17,8 +15,6 @@ const manifest = {
     url: 'git+https://github.com/NazmusSayad/ttysh.git',
   },
   bin: { ttysh: 'bin/ttysh.js' },
-  files: ['bin'],
-  engines: { node: '>=20.11' },
 }
 
 mkdirSync(path.join(output, 'bin'), { recursive: true })
