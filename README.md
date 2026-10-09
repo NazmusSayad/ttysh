@@ -14,13 +14,9 @@ A terminal in your browser, with groups in a sidebar and tabs along the top. You
 
 ## Install
 
-With npm:
-
 ```sh
 npm install -g ttysh
 ```
-
-Or download the binary for your platform from [GitHub Releases](https://github.com/NazmusSayad/ttysh/releases).
 
 ## Usage
 
