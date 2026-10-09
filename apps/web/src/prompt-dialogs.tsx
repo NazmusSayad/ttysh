@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { send } from '@/session'
+import { getState, send } from '@/session'
 
 export function RenameDialog(props: {
   target: 'tab' | 'group'
@@ -90,7 +90,6 @@ export function FolderDialog(props: {
   const [listing, setListing] = useState<Listing | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
-  const start = props.directory ?? '~'
   const directories = listing?.directories.filter((directory) =>
     directory.name.toLowerCase().includes(search.toLowerCase())
   )
@@ -108,10 +107,26 @@ export function FolderDialog(props: {
   }
 
   useEffect(() => {
-    listDirectories(start).then(setListing, (failure: unknown) =>
+    const { config, platform } = getState()
+    const candidates = [
+      props.directory,
+      config.shell[platform].cwd,
+      '~',
+    ].filter((path): path is string => path !== null && path !== '')
+    async function openFirst() {
+      let failure: unknown = null
+      for (const path of candidates) {
+        try {
+          setListing(await listDirectories(path))
+          return
+        } catch (error) {
+          failure = error
+        }
+      }
       setError(failure instanceof Error ? failure.message : String(failure))
-    )
-  }, [start])
+    }
+    void openFirst()
+  }, [props.directory])
 
   function choose(directory: string) {
     send({ type: 'setDirectory', id: props.groupId, directory })
