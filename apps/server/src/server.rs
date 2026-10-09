@@ -16,7 +16,8 @@ use axum::{
         State, WebSocketUpgrade,
         ws::{Message, WebSocket},
     },
-    response::Response,
+    http::{StatusCode, Uri, header},
+    response::{IntoResponse, Response},
     routing::get,
 };
 use futures_util::{SinkExt, StreamExt};
@@ -53,7 +54,11 @@ struct Tab {
 }
 
 #[derive(Deserialize)]
-#[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 enum Request {
     Hello { client_id: String },
     Resume { client_id: String },
@@ -110,12 +115,33 @@ async fn serve() {
     let router = Router::new()
         .route("/ws", get(socket))
         .route("/api/ghostty", get(crate::ghostty::config))
+        .fallback(asset)
         .with_state(app);
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", crate::SERVER_PORT))
         .await
         .expect("could not bind the server port");
     println!("listening on http://0.0.0.0:{}", crate::SERVER_PORT);
     axum::serve(listener, router).await.expect("server failed");
+}
+
+#[derive(rust_embed::Embed)]
+#[folder = "../web/dist"]
+#[allow_missing = true]
+struct Assets;
+
+async fn asset(uri: Uri) -> Response {
+    let path = match uri.path().trim_start_matches('/') {
+        "" => "index.html",
+        path => path,
+    };
+    match Assets::get(path) {
+        Some(file) => (
+            [(header::CONTENT_TYPE, file.metadata.mimetype().to_string())],
+            file.data,
+        )
+            .into_response(),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
 }
 
 fn load(path: &Path) -> Layout {
@@ -235,7 +261,11 @@ async fn connect(app: Arc<App>, socket: WebSocket) {
     }
     forwarding.abort();
     let mut inner = app.inner.lock().unwrap();
-    if inner.active.as_ref().is_some_and(|client| client.connection == connection) {
+    if inner
+        .active
+        .as_ref()
+        .is_some_and(|client| client.connection == connection)
+    {
         inner.active = None;
     }
 }
@@ -244,7 +274,10 @@ impl App {
     fn request(&self, connection: u64, sender: &mpsc::UnboundedSender<Message>, request: Request) {
         let mut guard = self.inner.lock().unwrap();
         let inner = &mut *guard;
-        let active = inner.active.as_ref().is_some_and(|client| client.connection == connection);
+        let active = inner
+            .active
+            .as_ref()
+            .is_some_and(|client| client.connection == connection);
         match request {
             Request::Hello { client_id } => {
                 let available = match &inner.active {
@@ -253,7 +286,14 @@ impl App {
                 };
                 if available {
                     let sender = sender.clone();
-                    self.activate(inner, Client { connection, client_id, sender });
+                    self.activate(
+                        inner,
+                        Client {
+                            connection,
+                            client_id,
+                            sender,
+                        },
+                    );
                 } else {
                     send(sender, json!({ "type": "paused" }));
                 }
@@ -261,12 +301,23 @@ impl App {
             }
             Request::Resume { client_id } => {
                 let sender = sender.clone();
-                self.activate(inner, Client { connection, client_id, sender });
+                self.activate(
+                    inner,
+                    Client {
+                        connection,
+                        client_id,
+                        sender,
+                    },
+                );
                 return;
             }
             _ if !active => return,
             Request::Resize { id, cols, rows } => {
-                self.to_keeper(frame::encode(frame::RESIZE, id, &frame::encode_size(cols, rows)));
+                self.to_keeper(frame::encode(
+                    frame::RESIZE,
+                    id,
+                    &frame::encode_size(cols, rows),
+                ));
                 return;
             }
             Request::CreateGroup => {
@@ -297,7 +348,12 @@ impl App {
                 }
             }
             Request::Select { group_id, tab_id } => {
-                let Some(group) = inner.layout.groups.iter_mut().find(|group| group.id == group_id) else {
+                let Some(group) = inner
+                    .layout
+                    .groups
+                    .iter_mut()
+                    .find(|group| group.id == group_id)
+                else {
                     return;
                 };
                 if tab_id.is_some() {
@@ -312,14 +368,22 @@ impl App {
 
     fn input(&self, connection: u64, bytes: &[u8]) {
         let inner = self.inner.lock().unwrap();
-        if !inner.active.as_ref().is_some_and(|client| client.connection == connection) {
+        if !inner
+            .active
+            .as_ref()
+            .is_some_and(|client| client.connection == connection)
+        {
             return;
         }
         if bytes.len() < 8 {
             eprintln!("input message is too short");
             return;
         }
-        self.to_keeper(frame::encode(frame::INPUT, frame::read_u64(bytes), &bytes[8..]));
+        self.to_keeper(frame::encode(
+            frame::INPUT,
+            frame::read_u64(bytes),
+            &bytes[8..],
+        ));
     }
 
     fn keeper_frame(&self, message: Frame) {
@@ -349,7 +413,13 @@ impl App {
                 }
             }
             frame::LIST => {
-                let live: HashSet<u64> = message.payload.chunks_exact(8).map(frame::read_u64).collect();
+                let live: HashSet<u64> = message
+                    .payload
+                    .as_chunks::<8>()
+                    .0
+                    .iter()
+                    .map(|chunk| u64::from_be_bytes(*chunk))
+                    .collect();
                 let tabs = tab_ids(&inner.layout);
                 for id in &live {
                     if !tabs.contains(id) {
@@ -360,7 +430,9 @@ impl App {
                     if !live.contains(id) {
                         match ghostty::launch() {
                             Ok(launch) => self.spawn(*id, &launch),
-                            Err(error) => eprintln!("could not read Ghostty config, terminal {id} not started: {error}"),
+                            Err(error) => eprintln!(
+                                "could not read Ghostty config, terminal {id} not started: {error}"
+                            ),
                         }
                     }
                 }
@@ -385,11 +457,18 @@ impl App {
             return;
         };
         inner.generation += 1;
-        send(&client.sender, json!({ "type": "active", "layout": inner.layout }));
+        send(
+            &client.sender,
+            json!({ "type": "active", "layout": inner.layout }),
+        );
         inner.pending.clear();
         for id in tab_ids(&inner.layout) {
             inner.pending.insert(id);
-            self.to_keeper(frame::encode(frame::REPLAY, id, &inner.generation.to_be_bytes()));
+            self.to_keeper(frame::encode(
+                frame::REPLAY,
+                id,
+                &inner.generation.to_be_bytes(),
+            ));
         }
     }
 
@@ -427,7 +506,11 @@ impl App {
                 self.to_keeper(frame::encode(frame::KILL, tab.id, &[]));
             }
             if layout.active_group == Some(id) {
-                layout.active_group = layout.groups.get(index).or(layout.groups.last()).map(|group| group.id);
+                layout.active_group = layout
+                    .groups
+                    .get(index)
+                    .or(layout.groups.last())
+                    .map(|group| group.id);
             }
             return;
         }
@@ -452,7 +535,11 @@ fn remove_tab(layout: &mut Layout, id: u64) -> bool {
         if let Some(index) = group.tabs.iter().position(|tab| tab.id == id) {
             group.tabs.remove(index);
             if group.active_tab == Some(id) {
-                group.active_tab = group.tabs.get(index).or(group.tabs.last()).map(|tab| tab.id);
+                group.active_tab = group
+                    .tabs
+                    .get(index)
+                    .or(group.tabs.last())
+                    .map(|tab| tab.id);
             }
             return true;
         }
@@ -461,12 +548,19 @@ fn remove_tab(layout: &mut Layout, id: u64) -> bool {
 }
 
 fn tab_ids(layout: &Layout) -> Vec<u64> {
-    layout.groups.iter().flat_map(|group| group.tabs.iter().map(|tab| tab.id)).collect()
+    layout
+        .groups
+        .iter()
+        .flat_map(|group| group.tabs.iter().map(|tab| tab.id))
+        .collect()
 }
 
 fn publish(inner: &Inner) {
     if let Some(client) = &inner.active {
-        send(&client.sender, json!({ "type": "layout", "layout": inner.layout }));
+        send(
+            &client.sender,
+            json!({ "type": "layout", "layout": inner.layout }),
+        );
     }
 }
 

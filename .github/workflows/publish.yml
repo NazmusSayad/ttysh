@@ -1,0 +1,86 @@
+name: Publish
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            npm: darwin-arm64
+            binary: ttysh
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            npm: darwin-x64
+            binary: ttysh
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            npm: linux-x64
+            binary: ttysh
+          - os: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+            npm: linux-arm64
+            binary: ttysh
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            npm: win32-x64
+            binary: ttysh.exe
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.10.1
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter web build
+      - run: rustup target add ${{ matrix.target }}
+      - run: cargo build --release --target ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.npm }}
+          path: target/${{ matrix.target }}/release/${{ matrix.binary }}
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - run: npm install -g npm@latest version-patch
+
+      - name: Set the version
+        run: |
+          version-patch node "${{ github.event.release.tag_name }}" --prefix v --pkg-file packages/ttysh/package.json
+          version-patch cargo "${{ github.event.release.tag_name }}" --prefix v --manifest-file apps/server/Cargo.toml
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "chore(release): ${{ github.event.release.tag_name }}" packages/ttysh/package.json apps/server/Cargo.toml Cargo.lock
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: packages/ttysh/bin
+      - run: chmod +x packages/ttysh/bin/*/ttysh
+
+      - run: npm publish --access public
+        working-directory: packages/ttysh
+      - run: git pull --rebase && git push

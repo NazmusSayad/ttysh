@@ -9,7 +9,9 @@ const SERVER_PORT: u16 = 47831;
 const KEEPER_PORT: u16 = 47832;
 
 fn data_directory() -> PathBuf {
-    dirs::home_dir().expect("home directory not found").join(".ttysh")
+    dirs::home_dir()
+        .expect("home directory not found")
+        .join(".ttysh")
 }
 
 fn main() {

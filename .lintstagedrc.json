@@ -1,0 +1,5 @@
+{
+  "*.{js,jsx,ts,tsx,mts}": ["oxlint --fix --max-warnings 5"],
+  "*.{json,md,yml,yaml,css}": ["oxfmt --write"],
+  "*.rs": ["rustfmt --edition 2024"]
+}

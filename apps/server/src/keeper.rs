@@ -44,7 +44,8 @@ impl Keeper {
 type Shared = Arc<Mutex<Keeper>>;
 
 pub fn run() {
-    let listener = TcpListener::bind(("127.0.0.1", crate::KEEPER_PORT)).expect("keeper could not bind its port");
+    let listener = TcpListener::bind(("127.0.0.1", crate::KEEPER_PORT))
+        .expect("keeper could not bind its port");
     eprintln!("keeper listening on 127.0.0.1:{}", crate::KEEPER_PORT);
     let keeper = Shared::default();
     for (number, stream) in listener.incoming().enumerate() {
@@ -77,7 +78,11 @@ fn serve(keeper: &Shared, stream: TcpStream, number: u64) {
     });
     {
         let mut state = keeper.lock().unwrap();
-        let ids: Vec<u8> = state.sessions.keys().flat_map(|id| id.to_be_bytes()).collect();
+        let ids: Vec<u8> = state
+            .sessions
+            .keys()
+            .flat_map(|id| id.to_be_bytes())
+            .collect();
         let _ = sender.send(frame::encode(frame::LIST, 0, &ids));
         state.link = Some((number, sender));
     }
@@ -95,9 +100,14 @@ fn handle(keeper: &Shared, message: Frame) {
     match message.kind {
         frame::SPAWN => {
             let size = message.payload.get(..4).and_then(frame::decode_size);
-            let launch = message.payload.get(4..).map(serde_json::from_slice::<Launch>);
+            let launch = message
+                .payload
+                .get(4..)
+                .map(serde_json::from_slice::<Launch>);
             match (size, launch) {
-                (Some(size), Some(Ok(launch))) => spawn(keeper, message.id, pty_size(size), &launch),
+                (Some(size), Some(Ok(launch))) => {
+                    spawn(keeper, message.id, pty_size(size), &launch)
+                }
                 _ => eprintln!("keeper: invalid spawn request"),
             }
         }
@@ -151,20 +161,34 @@ fn spawn(keeper: &Shared, id: u64, size: PtySize, launch: &Launch) {
     }
     if let Err(error) = open(keeper, id, size, launch) {
         eprintln!("keeper: could not start terminal {id}: {error}");
-        keeper.lock().unwrap().send(frame::encode(frame::EXIT, id, &[]));
+        keeper
+            .lock()
+            .unwrap()
+            .send(frame::encode(frame::EXIT, id, &[]));
     }
 }
 
 fn open(keeper: &Shared, id: u64, size: PtySize, launch: &Launch) -> Result<(), String> {
-    let pair = native_pty_system().openpty(size).map_err(|error| error.to_string())?;
+    let pair = native_pty_system()
+        .openpty(size)
+        .map_err(|error| error.to_string())?;
     let mut command = shell_command(launch);
     command.cwd(&launch.cwd);
     command.env("TERM", "xterm-256color");
     command.env("COLORTERM", "truecolor");
-    let mut child = pair.slave.spawn_command(command).map_err(|error| error.to_string())?;
+    let mut child = pair
+        .slave
+        .spawn_command(command)
+        .map_err(|error| error.to_string())?;
     drop(pair.slave);
-    let mut reader = pair.master.try_clone_reader().map_err(|error| error.to_string())?;
-    let mut writer = pair.master.take_writer().map_err(|error| error.to_string())?;
+    let mut reader = pair
+        .master
+        .try_clone_reader()
+        .map_err(|error| error.to_string())?;
+    let mut writer = pair
+        .master
+        .take_writer()
+        .map_err(|error| error.to_string())?;
     let (input, inputs) = mpsc::channel::<Vec<u8>>();
     keeper.lock().unwrap().sessions.insert(
         id,

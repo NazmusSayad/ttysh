@@ -44,7 +44,10 @@ pub async fn read_async(reader: &mut (impl AsyncRead + Unpin)) -> io::Result<Fra
 
 fn decode(mut body: Vec<u8>) -> io::Result<Frame> {
     if body.len() < 9 {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "frame is too short"));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "frame is too short",
+        ));
     }
     let payload = body.split_off(9);
     Ok(Frame {

@@ -1,4 +1,5 @@
 target/
-web/node_modules/
-web/dist/
+node_modules/
+dist/
 .playwright-cli/
+packages/ttysh/bin/*/

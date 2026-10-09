@@ -1,0 +1,8 @@
+{
+  "name": "server",
+  "private": true,
+  "scripts": {
+    "dev": "cargo run",
+    "build": "cargo build --release"
+  }
+}

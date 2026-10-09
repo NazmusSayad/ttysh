@@ -4,7 +4,7 @@
   --raised: color-mix(in srgb, var(--bg) 88%, var(--text));
   --line: color-mix(in srgb, var(--bg) 85%, var(--text));
   --muted: color-mix(in srgb, var(--text) 60%, var(--bg));
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 13px;
 }
 
@@ -193,6 +193,54 @@ button {
   place-items: center;
   background: color-mix(in srgb, var(--bg) 85%, transparent);
   backdrop-filter: blur(3px);
+}
+
+.dialog {
+  width: min(360px, calc(100vw - 32px));
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.dialog::backdrop {
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+}
+
+.dialog form {
+  display: grid;
+  gap: 16px;
+}
+
+.dialog p {
+  margin: 0;
+}
+
+.dialog input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  outline: none;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.dialog input:focus {
+  border-color: var(--accent);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.actions button {
+  padding: 8px 14px;
+  border-radius: 8px;
 }
 
 .failure {

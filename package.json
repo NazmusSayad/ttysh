@@ -1,0 +1,25 @@
+{
+  "name": "ttysh-monorepo",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm --filter web build && pnpm --filter server build",
+    "prepare": "husky",
+    "typecheck": "tsc -p tsconfig.json && pnpm --filter web typecheck && cargo check --all-targets",
+    "lint": "pnpm typecheck && oxlint . && cargo clippy --all-targets -- -D warnings && cargo fmt --check",
+    "lint:fix": "oxlint . --fix && cargo fmt"
+  },
+  "devDependencies": {
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-check-file": "^3.3.2",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-oxfmt": "^0.27.0",
+    "eslint-plugin-react": "^7.37.5",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "oxfmt": "^0.72.0",
+    "oxlint": "^1.87.0",
+    "oxlint-tsgolint": "^7.0.2003",
+    "typescript": "^7.0.2"
+  }
+}
