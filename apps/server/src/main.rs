@@ -1,5 +1,5 @@
+mod config;
 mod frame;
-mod ghostty;
 mod keeper;
 mod server;
 

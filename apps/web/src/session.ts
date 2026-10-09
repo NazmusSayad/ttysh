@@ -2,7 +2,7 @@ import { FitAddon } from '@xterm/addon-fit'
 import { LigaturesAddon } from '@xterm/addon-ligatures'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal } from '@xterm/xterm'
-import type { GhosttyConfig } from './ghostty'
+import { applyStyle, type Config, terminalOptions } from './config'
 
 type Tab = { id: number; name: string }
 type Group = { id: number; name: string; tabs: Tab[]; activeTab: number | null }
@@ -11,6 +11,7 @@ type State = {
   status: 'connecting' | 'active' | 'paused'
   layout: Layout
   ctrl: boolean
+  config: Config
 }
 
 type Request =
@@ -28,7 +29,12 @@ type Message =
   | { type: 'layout'; layout: Layout }
   | { type: 'paused' }
 
-type Session = { terminal: Terminal; fit: FitAddon; element: HTMLDivElement }
+type Session = {
+  terminal: Terminal
+  fit: FitAddon
+  element: HTMLDivElement
+  ligatures: LigaturesAddon | null
+}
 
 export const clientId =
   sessionStorage.getItem('clientId') ??
@@ -38,17 +44,17 @@ sessionStorage.setItem('clientId', clientId)
 const encoder = new TextEncoder()
 const sessions = new Map<number, Session>()
 const listeners = new Set<() => void>()
-let state: State = {
-  status: 'connecting',
-  layout: { groups: [], activeGroup: null, nextId: 0 },
-  ctrl: false,
-}
-let config: GhosttyConfig
+let state: State
 let socket: WebSocket
 let hiddenAt = 0
 
-export function start(loaded: GhosttyConfig) {
-  config = loaded
+export function start(config: Config) {
+  state = {
+    status: 'connecting',
+    layout: { groups: [], activeGroup: null, nextId: 0 },
+    ctrl: false,
+    config,
+  }
   socket = connect()
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
@@ -152,14 +158,7 @@ function sync(layout: Layout) {
 
 function createSession(id: number) {
   const terminal = new Terminal({
-    fontFamily: config.fontFamily,
-    fontSize: config.fontSize,
-    lineHeight: config.lineHeight,
-    cursorStyle: config.cursorStyle,
-    cursorBlink: config.cursorBlink,
-    drawBoldTextInBrightColors: config.boldIsBright,
-    theme: config.theme,
-    scrollback: 100_000,
+    ...terminalOptions(state.config),
     allowProposedApi: true,
   })
   const fit = new FitAddon()
@@ -175,8 +174,8 @@ function createSession(id: number) {
     send({ type: 'resize', id, cols: size.cols, rows: size.rows })
   )
   const element = document.createElement('div')
-  element.className = 'screen'
-  return { terminal, fit, element }
+  element.className = 'h-full'
+  return { terminal, fit, element, ligatures: null }
 }
 
 function applyCtrl(data: string) {
@@ -201,9 +200,7 @@ export function mount(id: number, container: HTMLElement) {
     const webgl = new WebglAddon()
     webgl.onContextLoss(() => webgl.dispose())
     session.terminal.loadAddon(webgl)
-    session.terminal.loadAddon(
-      new LigaturesAddon({ fontFeatureSettings: config.fontFeatureSettings })
-    )
+    syncLigatures(session)
   }
   session.fit.fit()
   reportSize(id, session.terminal)
@@ -213,5 +210,28 @@ export function mount(id: number, container: HTMLElement) {
   return () => {
     observer.disconnect()
     session.element.remove()
+  }
+}
+
+function syncLigatures(session: Session) {
+  const enabled = state.config.font.ligatures
+  if (enabled && !session.ligatures) {
+    session.ligatures = new LigaturesAddon()
+    session.terminal.loadAddon(session.ligatures)
+  }
+  if (!enabled && session.ligatures) {
+    session.ligatures.dispose()
+    session.ligatures = null
+  }
+}
+
+export async function applyConfig(config: Config) {
+  await applyStyle(config)
+  setState({ config })
+  for (const session of sessions.values()) {
+    session.terminal.options = terminalOptions(config)
+    if (!session.terminal.element) continue
+    syncLigatures(session)
+    if (session.element.isConnected) session.fit.fit()
   }
 }

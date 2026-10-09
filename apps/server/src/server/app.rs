@@ -1,57 +1,23 @@
 use std::{
     collections::HashSet,
-    fs, io,
-    path::{Path, PathBuf},
-    process::{Command, Stdio},
+    path::PathBuf,
     sync::{
         Arc, Mutex,
         atomic::{AtomicU64, Ordering},
     },
-    time::Duration,
 };
 
-use axum::{
-    Router,
-    extract::{
-        State, WebSocketUpgrade,
-        ws::{Message, WebSocket},
-    },
-    http::{StatusCode, Uri, header},
-    response::{IntoResponse, Response},
-    routing::get,
-};
+use axum::extract::ws::{Message, WebSocket};
 use futures_util::{SinkExt, StreamExt};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::json;
-use tokio::{io::AsyncWriteExt, net::TcpStream, sync::mpsc};
+use tokio::sync::mpsc;
 
+use super::layout::{self, Group, Layout, Tab, remove_tab, tab_ids, unused_name};
 use crate::{
+    config::{self, Launch},
     frame::{self, Frame},
-    ghostty::{self, Launch},
 };
-
-#[derive(Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-struct Layout {
-    groups: Vec<Group>,
-    active_group: Option<u64>,
-    next_id: u64,
-}
-
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Group {
-    id: u64,
-    name: String,
-    tabs: Vec<Tab>,
-    active_tab: Option<u64>,
-}
-
-#[derive(Serialize, Deserialize)]
-struct Tab {
-    id: u64,
-    name: String,
-}
 
 #[derive(Deserialize)]
 #[serde(
@@ -83,162 +49,30 @@ struct Inner {
     pending: HashSet<u64>,
 }
 
-struct App {
+pub(super) struct App {
     inner: Mutex<Inner>,
     keeper: mpsc::UnboundedSender<Vec<u8>>,
     path: PathBuf,
     connections: AtomicU64,
 }
 
-pub fn run() {
-    tokio::runtime::Runtime::new()
-        .expect("could not start the async runtime")
-        .block_on(serve());
-}
-
-async fn serve() {
-    let path = crate::data_directory().join("layout.json");
-    let layout = load(&path);
-    let (keeper, frames) = mpsc::unbounded_channel();
-    let app = Arc::new(App {
-        inner: Mutex::new(Inner {
-            layout,
-            active: None,
-            generation: 0,
-            pending: HashSet::new(),
-        }),
-        keeper,
-        path,
-        connections: AtomicU64::new(0),
-    });
-    tokio::spawn(link(app.clone(), frames));
-    let router = Router::new()
-        .route("/ws", get(socket))
-        .route("/api/ghostty", get(crate::ghostty::config))
-        .fallback(asset)
-        .with_state(app);
-    let listener = tokio::net::TcpListener::bind(("0.0.0.0", crate::SERVER_PORT))
-        .await
-        .expect("could not bind the server port");
-    println!("listening on http://0.0.0.0:{}", crate::SERVER_PORT);
-    axum::serve(listener, router).await.expect("server failed");
-}
-
-#[derive(rust_embed::Embed)]
-#[folder = "../web/dist"]
-#[allow_missing = true]
-struct Assets;
-
-async fn asset(uri: Uri) -> Response {
-    let path = match uri.path().trim_start_matches('/') {
-        "" => "index.html",
-        path => path,
-    };
-    match Assets::get(path) {
-        Some(file) => (
-            [(header::CONTENT_TYPE, file.metadata.mimetype().to_string())],
-            file.data,
-        )
-            .into_response(),
-        None => StatusCode::NOT_FOUND.into_response(),
-    }
-}
-
-fn load(path: &Path) -> Layout {
-    match fs::read_to_string(path) {
-        Ok(text) => serde_json::from_str(&text).expect("layout file is corrupt"),
-        Err(error) if error.kind() == io::ErrorKind::NotFound => Layout::default(),
-        Err(error) => panic!("could not read layout file: {error}"),
-    }
-}
-
-fn write_layout(path: &Path, layout: &Layout) -> io::Result<()> {
-    fs::create_dir_all(crate::data_directory())?;
-    let temporary = path.with_extension("json.tmp");
-    fs::write(&temporary, serde_json::to_vec_pretty(layout)?)?;
-    fs::rename(&temporary, path)
-}
-
-async fn link(app: Arc<App>, mut frames: mpsc::UnboundedReceiver<Vec<u8>>) {
-    loop {
-        let stream = connect_keeper().await;
-        let (mut reader, mut writer) = stream.into_split();
-        let reading = async {
-            loop {
-                match frame::read_async(&mut reader).await {
-                    Ok(message) => app.keeper_frame(message),
-                    Err(error) => {
-                        eprintln!("keeper connection lost: {error}");
-                        break;
-                    }
-                }
-            }
-        };
-        let writing = async {
-            while let Some(bytes) = frames.recv().await {
-                if let Err(error) = writer.write_all(&bytes).await {
-                    eprintln!("could not write to keeper: {error}");
-                    break;
-                }
-            }
-        };
-        tokio::select! {
-            _ = reading => {}
-            _ = writing => {}
+impl App {
+    pub(super) fn new(path: PathBuf, keeper: mpsc::UnboundedSender<Vec<u8>>) -> Self {
+        App {
+            inner: Mutex::new(Inner {
+                layout: layout::load(&path),
+                active: None,
+                generation: 0,
+                pending: HashSet::new(),
+            }),
+            keeper,
+            path,
+            connections: AtomicU64::new(0),
         }
     }
 }
 
-async fn connect_keeper() -> TcpStream {
-    loop {
-        if let Ok(stream) = TcpStream::connect(("127.0.0.1", crate::KEEPER_PORT)).await {
-            return stream;
-        }
-        if let Err(error) = start_keeper() {
-            eprintln!("could not start keeper: {error}");
-        }
-        for _ in 0..50 {
-            tokio::time::sleep(Duration::from_millis(100)).await;
-            if let Ok(stream) = TcpStream::connect(("127.0.0.1", crate::KEEPER_PORT)).await {
-                return stream;
-            }
-        }
-        eprintln!("keeper did not start in time, trying again");
-    }
-}
-
-fn start_keeper() -> io::Result<()> {
-    let directory = crate::data_directory();
-    fs::create_dir_all(&directory)?;
-    let log = fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(directory.join("keeper.log"))?;
-    let mut command = Command::new(std::env::current_exe()?);
-    command
-        .arg("keeper")
-        .stdin(Stdio::null())
-        .stdout(log.try_clone()?)
-        .stderr(log);
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::CommandExt;
-        command.process_group(0);
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x0000_0008 | 0x0000_0200);
-    }
-    command.spawn()?;
-    Ok(())
-}
-
-async fn socket(upgrade: WebSocketUpgrade, State(app): State<Arc<App>>) -> Response {
-    upgrade.on_upgrade(move |socket| connect(app, socket))
-}
-
-async fn connect(app: Arc<App>, socket: WebSocket) {
+pub(super) async fn connect(app: Arc<App>, socket: WebSocket) {
     let connection = app.connections.fetch_add(1, Ordering::Relaxed);
     let (mut sink, mut stream) = socket.split();
     let (sender, mut receiver) = mpsc::unbounded_channel();
@@ -326,7 +160,7 @@ impl App {
                 let id = layout.next_id;
                 layout.groups.push(Group {
                     id,
-                    name: format!("Group {}", layout.groups.len() + 1),
+                    name: unused_name("Group", layout.groups.iter().map(|group| &group.name)),
                     tabs: Vec::new(),
                     active_tab: None,
                 });
@@ -386,7 +220,7 @@ impl App {
         ));
     }
 
-    fn keeper_frame(&self, message: Frame) {
+    pub(super) fn keeper_frame(&self, message: Frame) {
         let mut guard = self.inner.lock().unwrap();
         let inner = &mut *guard;
         match message.kind {
@@ -428,10 +262,10 @@ impl App {
                 }
                 for id in &tabs {
                     if !live.contains(id) {
-                        match ghostty::launch() {
+                        match config::launch() {
                             Ok(launch) => self.spawn(*id, &launch),
                             Err(error) => eprintln!(
-                                "could not read Ghostty config, terminal {id} not started: {error}"
+                                "could not load config, terminal {id} not started: {error}"
                             ),
                         }
                     }
@@ -473,10 +307,10 @@ impl App {
     }
 
     fn create_tab(&self, layout: &mut Layout, group_id: u64) {
-        let launch = match ghostty::launch() {
+        let launch = match config::launch() {
             Ok(launch) => launch,
             Err(error) => {
-                eprintln!("could not read Ghostty config, terminal not created: {error}");
+                eprintln!("could not load config, terminal not created: {error}");
                 return;
             }
         };
@@ -487,7 +321,7 @@ impl App {
         };
         group.tabs.push(Tab {
             id,
-            name: format!("Terminal {}", group.tabs.len() + 1),
+            name: unused_name("Terminal", group.tabs.iter().map(|tab| &tab.name)),
         });
         group.active_tab = Some(id);
         self.spawn(id, &launch);
@@ -520,7 +354,7 @@ impl App {
     }
 
     fn save(&self, layout: &Layout) {
-        if let Err(error) = write_layout(&self.path, layout) {
+        if let Err(error) = layout::write_layout(&self.path, layout) {
             eprintln!("could not save layout: {error}");
         }
     }
@@ -528,31 +362,6 @@ impl App {
     fn to_keeper(&self, bytes: Vec<u8>) {
         let _ = self.keeper.send(bytes);
     }
-}
-
-fn remove_tab(layout: &mut Layout, id: u64) -> bool {
-    for group in &mut layout.groups {
-        if let Some(index) = group.tabs.iter().position(|tab| tab.id == id) {
-            group.tabs.remove(index);
-            if group.active_tab == Some(id) {
-                group.active_tab = group
-                    .tabs
-                    .get(index)
-                    .or(group.tabs.last())
-                    .map(|tab| tab.id);
-            }
-            return true;
-        }
-    }
-    false
-}
-
-fn tab_ids(layout: &Layout) -> Vec<u64> {
-    layout
-        .groups
-        .iter()
-        .flat_map(|group| group.tabs.iter().map(|tab| tab.id))
-        .collect()
 }
 
 fn publish(inner: &Inner) {

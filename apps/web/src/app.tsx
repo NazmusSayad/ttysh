@@ -1,5 +1,45 @@
-import { clsx } from 'clsx'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import {
+  Add01Icon,
+  Cancel01Icon,
+  Delete02Icon,
+  Menu01Icon,
+  PencilEdit02Icon,
+  Settings01Icon,
+} from '@hugeicons/core-free-icons'
+import { HugeiconsIcon } from '@hugeicons/react'
+import {
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
 import {
   clientId,
   getState,
@@ -8,9 +48,15 @@ import {
   sendInput,
   subscribe,
   toggleCtrl,
-} from './session'
+} from '@/session'
+import { SettingsDialog } from '@/settings-dialog'
 
-type Prompt = { type: 'rename' | 'close'; id: number; name: string }
+type Prompt = {
+  type: 'rename' | 'close'
+  target: 'tab' | 'group'
+  id: number
+  name: string
+}
 
 const keys = [
   { label: 'Esc', sequence: '\x1b' },
@@ -24,180 +70,255 @@ const keys = [
 export function App() {
   const state = useSyncExternalStore(subscribe, getState)
   const [drawer, setDrawer] = useState(false)
+  const [settings, setSettings] = useState(false)
   const [prompt, setPrompt] = useState<Prompt | null>(null)
   const layout = state.layout
   const group = layout.groups.find((item) => item.id === layout.activeGroup)
   const tabId = group?.activeTab ?? null
 
   return (
-    <div className="app">
-      {drawer && <div className="backdrop" onClick={() => setDrawer(false)} />}
-      <aside className={clsx('sidebar', drawer && 'open')}>
+    <div className="flex h-dvh text-sm">
+      {drawer && (
+        <div
+          className="fixed inset-0 z-10 bg-black/50 md:hidden"
+          onClick={() => setDrawer(false)}
+        />
+      )}
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-20 flex w-60 -translate-x-full flex-col gap-1 overflow-y-auto border-r bg-card p-3 transition-transform motion-reduce:transition-none md:static md:w-12 md:translate-x-0 md:items-center md:px-0 md:py-2',
+          drawer && 'translate-x-0'
+        )}
+      >
         {layout.groups.map((item) => (
-          <button
+          <ItemMenu
             key={item.id}
-            className={clsx(
-              'group',
-              item.id === layout.activeGroup && 'selected'
-            )}
-            title={item.name}
-            onClick={() => {
-              send({ type: 'select', groupId: item.id, tabId: null })
-              setDrawer(false)
-            }}
-            onDoubleClick={() =>
-              setPrompt({ type: 'rename', id: item.id, name: item.name })
+            closeLabel="Close group"
+            onRename={() =>
+              setPrompt({
+                type: 'rename',
+                target: 'group',
+                id: item.id,
+                name: item.name,
+              })
+            }
+            onClose={() =>
+              setPrompt({
+                type: 'close',
+                target: 'group',
+                id: item.id,
+                name: item.name,
+              })
             }
           >
-            <span className="initials">{initials(item.name)}</span>
-            <span className="label">{item.name}</span>
-          </button>
+            <button
+              className={cn(
+                'relative flex h-9 flex-none items-center rounded-md px-3 font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:size-8 md:justify-center md:px-0 md:text-[11px] md:font-semibold',
+                item.id === layout.activeGroup &&
+                  'bg-secondary text-foreground before:absolute before:-left-3 before:h-4 before:w-[3px] before:rounded-r-full before:bg-primary md:before:-left-2'
+              )}
+              title={item.name}
+              onClick={() => {
+                send({ type: 'select', groupId: item.id, tabId: null })
+                setDrawer(false)
+              }}
+              onDoubleClick={() =>
+                setPrompt({
+                  type: 'rename',
+                  target: 'group',
+                  id: item.id,
+                  name: item.name,
+                })
+              }
+            >
+              <span className="hidden md:inline">{initials(item.name)}</span>
+              <span className="truncate md:hidden">{item.name}</span>
+            </button>
+          </ItemMenu>
         ))}
         <button
-          className="group add"
+          className="border-muted-foreground/30 text-muted-foreground hover:border-muted-foreground/60 hover:text-foreground flex h-9 flex-none items-center justify-center rounded-md border border-dashed transition-colors md:size-8"
           title="New group"
           onClick={() => {
             send({ type: 'createGroup' })
             setDrawer(false)
           }}
         >
-          +
+          <HugeiconsIcon icon={Add01Icon} className="size-4" />
+        </button>
+        <button
+          className="text-muted-foreground hover:bg-accent hover:text-foreground mt-auto flex h-9 flex-none items-center gap-2 rounded-md px-3 transition-colors md:size-8 md:justify-center md:px-0"
+          title="Settings"
+          onClick={() => {
+            setSettings(true)
+            setDrawer(false)
+          }}
+        >
+          <HugeiconsIcon icon={Settings01Icon} className="size-4" />
+          <span className="md:hidden">Settings</span>
         </button>
       </aside>
-      <main className="main">
-        <header className="tabs">
+      <main className="flex min-w-0 flex-1 flex-col">
+        <header className="bg-card flex h-8 flex-none border-b">
           <button
-            className="icon menu"
+            className="text-muted-foreground hover:text-foreground grid w-9 flex-none place-items-center md:hidden"
             aria-label="Groups"
             onClick={() => setDrawer(!drawer)}
           >
-            ☰
+            <HugeiconsIcon icon={Menu01Icon} className="size-4" />
           </button>
           {group && (
-            <>
-              <div className="tablist">
-                {group.tabs.map((tab) => (
+            <div className="flex min-w-0 flex-1 [scrollbar-width:none] overflow-x-auto">
+              {group.tabs.map((tab) => (
+                <ItemMenu
+                  key={tab.id}
+                  closeLabel="Close tab"
+                  onRename={() =>
+                    setPrompt({
+                      type: 'rename',
+                      target: 'tab',
+                      id: tab.id,
+                      name: tab.name,
+                    })
+                  }
+                  onClose={() => send({ type: 'close', id: tab.id })}
+                >
                   <div
-                    key={tab.id}
-                    className={clsx('tab', tab.id === tabId && 'selected')}
+                    className={cn(
+                      'group/tab flex max-w-48 flex-none cursor-pointer items-center gap-1 border-r pr-1.5 pl-3 text-xs text-muted-foreground transition-colors select-none hover:text-foreground',
+                      tab.id === tabId &&
+                        'bg-background text-foreground shadow-[inset_0_2px_var(--brand)]'
+                    )}
                     onClick={() =>
                       send({ type: 'select', groupId: group.id, tabId: tab.id })
                     }
                     onDoubleClick={() =>
-                      setPrompt({ type: 'rename', id: tab.id, name: tab.name })
+                      setPrompt({
+                        type: 'rename',
+                        target: 'tab',
+                        id: tab.id,
+                        name: tab.name,
+                      })
                     }
                   >
-                    <span>{tab.name}</span>
+                    <span className="truncate">{tab.name}</span>
                     <button
-                      className="close"
+                      className={cn(
+                        'grid size-5 flex-none place-items-center rounded text-muted-foreground opacity-0 transition-opacity group-hover/tab:opacity-100 hover:bg-accent hover:text-foreground',
+                        tab.id === tabId && 'opacity-100'
+                      )}
                       aria-label="Close tab"
                       onClick={(event) => {
                         event.stopPropagation()
                         send({ type: 'close', id: tab.id })
                       }}
                     >
-                      ×
+                      <HugeiconsIcon icon={Cancel01Icon} className="size-3" />
                     </button>
                   </div>
-                ))}
-                <button
-                  className="icon"
-                  aria-label="New tab"
-                  onClick={() => send({ type: 'createTab', groupId: group.id })}
-                >
-                  +
-                </button>
-              </div>
+                </ItemMenu>
+              ))}
               <button
-                className="icon"
-                title="Rename group"
-                onClick={() =>
-                  setPrompt({ type: 'rename', id: group.id, name: group.name })
-                }
+                className="text-muted-foreground hover:text-foreground grid w-8 flex-none place-items-center transition-colors"
+                aria-label="New tab"
+                title="New tab"
+                onClick={() => send({ type: 'createTab', groupId: group.id })}
               >
-                ✎
-              </button>
-              <button
-                className="icon"
-                title="Close group"
-                onClick={() =>
-                  setPrompt({ type: 'close', id: group.id, name: group.name })
-                }
-              >
-                ✕
-              </button>
-            </>
-          )}
-        </header>
-        <div className="stage">
-          {tabId !== null && <TerminalPane key={tabId} id={tabId} />}
-          {state.status === 'active' && !group && (
-            <div className="empty">
-              <button
-                className="primary"
-                onClick={() => send({ type: 'createGroup' })}
-              >
-                New group
+                <HugeiconsIcon icon={Add01Icon} className="size-4" />
               </button>
             </div>
           )}
+        </header>
+        <div className="relative min-h-0 flex-1">
+          {tabId !== null && <TerminalPane key={tabId} id={tabId} />}
+          {state.status === 'active' && !group && (
+            <div className="absolute inset-0 grid place-items-center">
+              <Button onClick={() => send({ type: 'createGroup' })}>
+                New group
+              </Button>
+            </div>
+          )}
           {group && group.tabs.length === 0 && (
-            <div className="empty">
-              <button
-                className="primary"
+            <div className="absolute inset-0 grid place-items-center">
+              <Button
                 onClick={() => send({ type: 'createTab', groupId: group.id })}
               >
                 New terminal
-              </button>
+              </Button>
             </div>
           )}
         </div>
         {tabId !== null && (
-          <div className="keys">
+          <div className="bg-card hidden flex-none gap-1.5 overflow-x-auto border-t p-1.5 pointer-coarse:flex">
             {keys.map((key) => (
-              <button
+              <Button
                 key={key.label}
+                variant="secondary"
+                className="min-w-11"
                 onPointerDown={(event) => event.preventDefault()}
                 onClick={() => sendInput(tabId, key.sequence)}
               >
                 {key.label}
-              </button>
+              </Button>
             ))}
-            <button
-              className={clsx(state.ctrl && 'selected')}
+            <Button
+              variant={state.ctrl ? 'default' : 'secondary'}
+              className="min-w-11"
               onPointerDown={(event) => event.preventDefault()}
               onClick={toggleCtrl}
             >
               Ctrl
-            </button>
+            </Button>
           </div>
         )}
       </main>
-      {prompt && (
-        <PromptDialog
-          key={`${prompt.type}-${prompt.id}`}
+      {prompt?.type === 'rename' && (
+        <RenameDialog
+          key={prompt.id}
           prompt={prompt}
           onDone={() => setPrompt(null)}
         />
       )}
-      {state.status === 'paused' && (
-        <div className="overlay">
-          <div className="notice">
-            <h2>Session paused</h2>
-            <button
-              className="primary"
-              onClick={() => send({ type: 'resume', clientId })}
+      <AlertDialog
+        open={prompt?.type === 'close'}
+        onOpenChange={(open) => {
+          if (!open) setPrompt(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Close “{prompt?.name}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              All terminals in this group will be closed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (prompt) send({ type: 'close', id: prompt.id })
+              }}
             >
-              Resume here
-            </button>
-          </div>
-        </div>
-      )}
-      {state.status === 'connecting' && (
-        <div className="overlay">
-          <div className="notice">
-            <p>Connecting…</p>
-          </div>
+              Close
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {settings && <SettingsDialog onDone={() => setSettings(false)} />}
+      {state.status !== 'active' && (
+        <div className="bg-background/85 fixed inset-0 z-50 grid place-items-center backdrop-blur-xs">
+          {state.status === 'paused' && (
+            <div className="grid justify-items-center gap-3.5">
+              <h2 className="font-semibold">Session paused</h2>
+              <Button onClick={() => send({ type: 'resume', clientId })}>
+                Resume here
+              </Button>
+            </div>
+          )}
+          {state.status === 'connecting' && (
+            <p className="text-muted-foreground">Connecting…</p>
+          )}
         </div>
       )}
     </div>
@@ -212,48 +333,75 @@ function TerminalPane(props: { id: number }) {
     return mount(props.id, container.current)
   }, [props.id])
 
-  return <div className="pane" ref={container} />
+  return (
+    <div
+      className="bg-background absolute inset-0 pt-(--pad-top) pr-(--pad-right) pb-(--pad-bottom) pl-(--pad-left)"
+      ref={container}
+    />
+  )
 }
 
-function PromptDialog(props: { prompt: Prompt; onDone: () => void }) {
-  const dialog = useRef<HTMLDialogElement>(null)
+function RenameDialog(props: { prompt: Prompt; onDone: () => void }) {
   const [name, setName] = useState(props.prompt.name)
 
-  useEffect(() => {
-    dialog.current?.showModal()
-  }, [])
-
-  function submit() {
-    if (props.prompt.type === 'close') {
-      send({ type: 'close', id: props.prompt.id })
-      return
-    }
-    const trimmed = name.trim()
-    if (trimmed) send({ type: 'rename', id: props.prompt.id, name: trimmed })
-  }
-
   return (
-    <dialog ref={dialog} className="dialog" onClose={props.onDone}>
-      <form method="dialog" onSubmit={submit}>
-        {props.prompt.type === 'rename' ? (
-          <input
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) props.onDone()
+      }}
+    >
+      <DialogContent>
+        <form
+          className="grid gap-4"
+          onSubmit={(event) => {
+            event.preventDefault()
+            const trimmed = name.trim()
+            if (trimmed)
+              send({ type: 'rename', id: props.prompt.id, name: trimmed })
+            props.onDone()
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Rename {props.prompt.target}</DialogTitle>
+          </DialogHeader>
+          <Input
             aria-label="Name"
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
-        ) : (
-          <p>Close “{props.prompt.name}” and all its terminals?</p>
-        )}
-        <div className="actions">
-          <button type="button" onClick={() => dialog.current?.close()}>
-            Cancel
-          </button>
-          <button type="submit" className="primary">
-            {props.prompt.type === 'rename' ? 'Rename' : 'Close'}
-          </button>
-        </div>
-      </form>
-    </dialog>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={props.onDone}>
+              Cancel
+            </Button>
+            <Button type="submit">Rename</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ItemMenu(props: {
+  closeLabel: string
+  onRename: () => void
+  onClose: () => void
+  children: ReactNode
+}) {
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{props.children}</ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem onSelect={props.onRename}>
+          <HugeiconsIcon icon={PencilEdit02Icon} />
+          Rename
+        </ContextMenuItem>
+        <ContextMenuItem variant="destructive" onSelect={props.onClose}>
+          <HugeiconsIcon icon={Delete02Icon} />
+          {props.closeLabel}
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
 

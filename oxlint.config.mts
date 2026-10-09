@@ -14,7 +14,13 @@ export default defineConfig({
   ignorePatterns: ['*.config.{js,ts,mjs,mts}'],
   settings: {
     react: { version: '19' },
-    'import/resolver': { typescript: true, node: true },
+    'import/resolver': {
+      typescript: {
+        project: ['tsconfig.json', 'apps/*/tsconfig.json'],
+        noWarnOnMultipleProjects: true,
+      },
+      node: true,
+    },
   },
   rules: {
     'oxfmt/oxfmt': 'warn',

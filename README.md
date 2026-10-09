@@ -9,7 +9,7 @@ A terminal in your browser, with groups in a sidebar and tabs along the top. You
 - Shells survive server crashes and restarts
 - One active device at a time, with a "Resume here" prompt on the others
 - Works on phones and tablets
-- Uses your Ghostty config for fonts, colors, padding, cursor, shell, and working directory
+- Settings for shell, font, cursor, padding, and colors, saved in `~/.ttysh/config.json`
 - Runs on macOS, Linux, and Windows
 
 ## Install
