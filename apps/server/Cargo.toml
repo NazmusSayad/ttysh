@@ -1,6 +1,9 @@
 [package]
 name = "ttysh"
+version = "0.0.0"
 edition = "2024"
+description = "Browser terminal with groups and tabs that keeps your shells running"
+license = "MIT"
 
 [dependencies]
 axum = { version = "0.8.9", features = ["ws"] }
