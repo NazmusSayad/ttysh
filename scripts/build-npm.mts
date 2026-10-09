@@ -25,6 +25,7 @@ writeFileSync(
   )
 )
 copyFileSync(path.join(root, 'LICENSE'), path.join(output, 'LICENSE'))
+copyFileSync(path.join(root, 'README.md'), path.join(output, 'README.md'))
 writeFileSync(
   path.join(output, 'package.json'),
   `${JSON.stringify(manifest, null, 2)}\n`

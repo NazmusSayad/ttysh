@@ -5,7 +5,7 @@ on:
     types: [published]
 
 permissions:
-  contents: read
+  contents: write
   id-token: write
 
 jobs:
@@ -76,3 +76,13 @@ jobs:
 
       - run: npm publish --access public
         working-directory: dist/npm
+
+      - run: |
+          mkdir release
+          for platform in darwin-arm64 darwin-x64 linux-arm64 linux-x64; do
+            cp dist/npm/bin/$platform/ttysh release/ttysh-$platform
+          done
+          cp dist/npm/bin/win32-x64/ttysh.exe release/ttysh-win32-x64.exe
+          gh release upload "${{ github.event.release.tag_name }}" release/*
+        env:
+          GH_TOKEN: ${{ github.token }}
