@@ -47,6 +47,7 @@ import {
   send,
   sendInput,
   subscribe,
+  tabTitle,
   toggleCtrl,
 } from '@/session'
 import { SettingsDialog } from '@/settings-dialog'
@@ -86,7 +87,7 @@ export function App() {
       )}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-20 flex w-60 -translate-x-full flex-col gap-1 overflow-y-auto border-r bg-card p-3 transition-transform motion-reduce:transition-none md:static md:w-12 md:translate-x-0 md:items-center md:px-0 md:py-2',
+          'fixed inset-y-0 left-0 z-20 flex w-60 -translate-x-full flex-col gap-0.5 overflow-y-auto border-r bg-card p-2 transition-transform select-none motion-reduce:transition-none md:static md:w-12 md:translate-x-0 md:items-center md:px-0',
           drawer && 'translate-x-0'
         )}
       >
@@ -113,9 +114,8 @@ export function App() {
           >
             <button
               className={cn(
-                'relative flex h-9 flex-none items-center rounded-md px-3 font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:size-8 md:justify-center md:px-0 md:text-[11px] md:font-semibold',
-                item.id === layout.activeGroup &&
-                  'bg-secondary text-foreground before:absolute before:-left-3 before:h-4 before:w-[3px] before:rounded-r-full before:bg-primary md:before:-left-2'
+                'flex h-8 flex-none items-center rounded-md px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:size-8 md:justify-center md:px-0 md:text-[11px] md:font-medium',
+                item.id === layout.activeGroup && 'bg-accent text-foreground'
               )}
               title={item.name}
               onClick={() => {
@@ -137,7 +137,7 @@ export function App() {
           </ItemMenu>
         ))}
         <button
-          className="border-muted-foreground/30 text-muted-foreground hover:border-muted-foreground/60 hover:text-foreground flex h-9 flex-none items-center justify-center rounded-md border border-dashed transition-colors md:size-8"
+          className="text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-8 md:justify-center md:px-0"
           title="New group"
           onClick={() => {
             send({ type: 'createGroup' })
@@ -145,9 +145,10 @@ export function App() {
           }}
         >
           <HugeiconsIcon icon={Add01Icon} className="size-4" />
+          <span className="md:hidden">New group</span>
         </button>
         <button
-          className="text-muted-foreground hover:bg-accent hover:text-foreground mt-auto flex h-9 flex-none items-center gap-2 rounded-md px-3 transition-colors md:size-8 md:justify-center md:px-0"
+          className="text-muted-foreground hover:bg-accent hover:text-foreground mt-auto flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-8 md:justify-center md:px-0"
           title="Settings"
           onClick={() => {
             setSettings(true)
@@ -159,7 +160,7 @@ export function App() {
         </button>
       </aside>
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="bg-card flex h-8 flex-none border-b">
+        <header className="bg-card flex h-8 flex-none border-b select-none">
           <button
             className="text-muted-foreground hover:text-foreground grid w-9 flex-none place-items-center md:hidden"
             aria-label="Groups"
@@ -168,72 +169,80 @@ export function App() {
             <HugeiconsIcon icon={Menu01Icon} className="size-4" />
           </button>
           {group && (
-            <div className="flex min-w-0 flex-1 [scrollbar-width:none] overflow-x-auto">
-              {group.tabs.map((tab) => (
-                <ItemMenu
-                  key={tab.id}
-                  closeLabel="Close tab"
-                  onRename={() =>
-                    setPrompt({
-                      type: 'rename',
-                      target: 'tab',
-                      id: tab.id,
-                      name: tab.name,
-                    })
-                  }
-                  onClose={() => send({ type: 'close', id: tab.id })}
-                >
-                  <div
-                    className={cn(
-                      'group/tab flex max-w-48 flex-none cursor-pointer items-center gap-1 border-r pr-1.5 pl-3 text-xs text-muted-foreground transition-colors select-none hover:text-foreground',
-                      tab.id === tabId &&
-                        'bg-background text-foreground shadow-[inset_0_2px_var(--brand)]'
-                    )}
-                    onClick={() =>
-                      send({ type: 'select', groupId: group.id, tabId: tab.id })
-                    }
-                    onDoubleClick={() =>
+            <>
+              <div className="flex min-w-0 flex-1 [scrollbar-width:none] overflow-x-auto">
+                {group.tabs.map((tab) => (
+                  <ItemMenu
+                    key={tab.id}
+                    closeLabel="Close tab"
+                    onRename={() =>
                       setPrompt({
                         type: 'rename',
                         target: 'tab',
                         id: tab.id,
-                        name: tab.name,
+                        name: tab.customName ?? '',
                       })
                     }
+                    onClose={() => send({ type: 'close', id: tab.id })}
                   >
-                    <span className="truncate">{tab.name}</span>
-                    <button
+                    <div
                       className={cn(
-                        'grid size-5 flex-none place-items-center rounded text-muted-foreground opacity-0 transition-opacity group-hover/tab:opacity-100 hover:bg-accent hover:text-foreground',
-                        tab.id === tabId && 'opacity-100'
+                        'group/tab relative flex min-w-28 flex-1 items-center justify-center border-r px-7 text-xs text-muted-foreground transition-colors last:border-r-0 hover:text-foreground',
+                        tab.id === tabId && 'bg-background text-foreground'
                       )}
-                      aria-label="Close tab"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        send({ type: 'close', id: tab.id })
-                      }}
+                      onClick={() =>
+                        send({
+                          type: 'select',
+                          groupId: group.id,
+                          tabId: tab.id,
+                        })
+                      }
+                      onDoubleClick={() =>
+                        setPrompt({
+                          type: 'rename',
+                          target: 'tab',
+                          id: tab.id,
+                          name: tab.customName ?? '',
+                        })
+                      }
                     >
-                      <HugeiconsIcon icon={Cancel01Icon} className="size-3" />
-                    </button>
-                  </div>
-                </ItemMenu>
-              ))}
+                      <span className="truncate">{tabTitle(tab)}</span>
+                      <button
+                        className={cn(
+                          'absolute left-1.5 grid size-4.5 place-items-center rounded text-muted-foreground opacity-0 transition-opacity group-hover/tab:opacity-100 hover:bg-accent hover:text-foreground',
+                          tab.id === tabId && 'pointer-coarse:opacity-100'
+                        )}
+                        aria-label="Close tab"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          send({ type: 'close', id: tab.id })
+                        }}
+                      >
+                        <HugeiconsIcon icon={Cancel01Icon} className="size-3" />
+                      </button>
+                    </div>
+                  </ItemMenu>
+                ))}
+              </div>
               <button
-                className="text-muted-foreground hover:text-foreground grid w-8 flex-none place-items-center transition-colors"
+                className="text-muted-foreground hover:text-foreground grid w-8 flex-none place-items-center border-l transition-colors"
                 aria-label="New tab"
                 title="New tab"
                 onClick={() => send({ type: 'createTab', groupId: group.id })}
               >
                 <HugeiconsIcon icon={Add01Icon} className="size-4" />
               </button>
-            </div>
+            </>
           )}
         </header>
         <div className="relative min-h-0 flex-1">
           {tabId !== null && <TerminalPane key={tabId} id={tabId} />}
           {state.status === 'active' && !group && (
             <div className="absolute inset-0 grid place-items-center">
-              <Button onClick={() => send({ type: 'createGroup' })}>
+              <Button
+                variant="outline"
+                onClick={() => send({ type: 'createGroup' })}
+              >
                 New group
               </Button>
             </div>
@@ -241,6 +250,7 @@ export function App() {
           {group && group.tabs.length === 0 && (
             <div className="absolute inset-0 grid place-items-center">
               <Button
+                variant="outline"
                 onClick={() => send({ type: 'createTab', groupId: group.id })}
               >
                 New terminal
@@ -357,7 +367,7 @@ function RenameDialog(props: { prompt: Prompt; onDone: () => void }) {
           onSubmit={(event) => {
             event.preventDefault()
             const trimmed = name.trim()
-            if (trimmed)
+            if (props.prompt.target === 'tab' || trimmed)
               send({ type: 'rename', id: props.prompt.id, name: trimmed })
             props.onDone()
           }}
@@ -367,6 +377,9 @@ function RenameDialog(props: { prompt: Prompt; onDone: () => void }) {
           </DialogHeader>
           <Input
             aria-label="Name"
+            placeholder={
+              props.prompt.target === 'tab' ? 'Use terminal title' : undefined
+            }
             value={name}
             onChange={(event) => setName(event.target.value)}
           />

@@ -8,21 +8,21 @@
   color-scheme: dark;
   --background: var(--bg);
   --foreground: var(--text);
-  --card: color-mix(in srgb, var(--bg) 72%, black);
+  --card: color-mix(in srgb, var(--bg) 90%, black);
   --card-foreground: var(--text);
   --popover: color-mix(in srgb, var(--bg) 94%, var(--text));
   --popover-foreground: var(--text);
   --primary: var(--brand);
   --primary-foreground: var(--bg);
-  --secondary: color-mix(in srgb, var(--bg) 90%, var(--text));
+  --secondary: color-mix(in srgb, var(--bg) 93%, var(--text));
   --secondary-foreground: var(--text);
-  --muted: color-mix(in srgb, var(--bg) 90%, var(--text));
+  --muted: color-mix(in srgb, var(--bg) 93%, var(--text));
   --muted-foreground: color-mix(in srgb, var(--text) 55%, var(--bg));
-  --accent: color-mix(in srgb, var(--bg) 90%, var(--text));
+  --accent: color-mix(in srgb, var(--bg) 93%, var(--text));
   --accent-foreground: var(--text);
   --destructive: var(--danger);
-  --border: color-mix(in srgb, var(--text) 9%, transparent);
-  --input: color-mix(in srgb, var(--text) 14%, transparent);
+  --border: color-mix(in srgb, var(--text) 6%, transparent);
+  --input: color-mix(in srgb, var(--text) 10%, transparent);
   --ring: var(--brand);
   --radius: 0.625rem;
 }
@@ -67,7 +67,24 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  button:not(:disabled) {
-    cursor: pointer;
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+    background-color: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    border-radius: 6px;
+    background-color: color-mix(in srgb, var(--text) 12%, transparent);
+  }
+}
+
+@supports (corner-shape: squircle) {
+  :root {
+    --radius: 0.9rem;
+  }
+
+  [class*='rounded-']:not(.rounded-full) {
+    corner-shape: squircle;
   }
 }

@@ -4,7 +4,7 @@ import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal } from '@xterm/xterm'
 import { applyStyle, type Config, terminalOptions } from './config'
 
-type Tab = { id: number; name: string }
+type Tab = { id: number; customName: string | null }
 type Group = { id: number; name: string; tabs: Tab[]; activeTab: number | null }
 type Layout = { groups: Group[]; activeGroup: number | null; nextId: number }
 type State = {
@@ -12,6 +12,7 @@ type State = {
   layout: Layout
   ctrl: boolean
   config: Config
+  titles: Record<number, string>
 }
 
 type Request =
@@ -54,6 +55,7 @@ export function start(config: Config) {
     layout: { groups: [], activeGroup: null, nextId: 0 },
     ctrl: false,
     config,
+    titles: {},
   }
   socket = connect()
   document.addEventListener('visibilitychange', () => {
@@ -82,7 +84,16 @@ export function getState() {
 
 function setState(next: Partial<State>) {
   state = { ...state, ...next }
+  const group = state.layout.groups.find(
+    (item) => item.id === state.layout.activeGroup
+  )
+  const tab = group?.tabs.find((item) => item.id === group.activeTab)
+  document.title = tab ? tabTitle(tab) : 'ttysh'
   for (const listener of listeners) listener()
+}
+
+export function tabTitle(tab: Tab) {
+  return (tab.customName ?? state.titles[tab.id]) || 'Terminal'
 }
 
 export function send(request: Request) {
@@ -170,6 +181,9 @@ function createSession(id: number) {
       Uint8Array.from(data, (character) => character.charCodeAt(0))
     )
   )
+  terminal.onTitleChange((title) =>
+    setState({ titles: { ...state.titles, [id]: title } })
+  )
   terminal.onResize((size) =>
     send({ type: 'resize', id, cols: size.cols, rows: size.rows })
   )
@@ -197,6 +211,7 @@ export function mount(id: number, container: HTMLElement) {
   container.appendChild(session.element)
   if (!session.terminal.element) {
     session.terminal.open(session.element)
+    session.terminal.options = terminalOptions(state.config)
     const webgl = new WebglAddon()
     webgl.onContextLoss(() => webgl.dispose())
     session.terminal.loadAddon(webgl)
@@ -229,8 +244,8 @@ export async function applyConfig(config: Config) {
   await applyStyle(config)
   setState({ config })
   for (const session of sessions.values()) {
-    session.terminal.options = terminalOptions(config)
     if (!session.terminal.element) continue
+    session.terminal.options = terminalOptions(config)
     syncLigatures(session)
     if (session.element.isConnected) session.fit.fit()
   }

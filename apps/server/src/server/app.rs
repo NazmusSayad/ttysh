@@ -171,12 +171,15 @@ impl App {
             Request::Close { id } => self.close(&mut inner.layout, id),
             Request::Rename { id, name } => {
                 for group in &mut inner.layout.groups {
-                    if group.id == id {
+                    if group.id == id && !name.is_empty() {
                         group.name = name.clone();
                     }
                     for tab in &mut group.tabs {
                         if tab.id == id {
-                            tab.name = name.clone();
+                            tab.custom_name = match name.is_empty() {
+                                true => None,
+                                false => Some(name.clone()),
+                            };
                         }
                     }
                 }
@@ -321,7 +324,7 @@ impl App {
         };
         group.tabs.push(Tab {
             id,
-            name: unused_name("Terminal", group.tabs.iter().map(|tab| &tab.name)),
+            custom_name: None,
         });
         group.active_tab = Some(id);
         self.spawn(id, &launch);

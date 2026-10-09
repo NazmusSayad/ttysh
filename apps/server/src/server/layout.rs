@@ -22,9 +22,10 @@ pub(super) struct Group {
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub(super) struct Tab {
     pub(super) id: u64,
-    pub(super) name: String,
+    pub(super) custom_name: Option<String>,
 }
 
 pub(super) fn load(path: &Path) -> Layout {
