@@ -122,8 +122,9 @@ export function SettingsPage(props: { onMenu: () => void }) {
             ~/.ttysh/config.json
           </p>
           <Button
-            variant="outline"
-            className="ml-auto"
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground -mr-2.5 ml-auto"
             onClick={() => setConfirming(true)}
           >
             Restore defaults

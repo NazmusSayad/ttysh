@@ -15,6 +15,7 @@ type Group = {
   id: number
   name: string
   logo: string | null
+  directory: string | null
   tabs: Tab[]
   activeTab: number | null
 }
@@ -35,6 +36,7 @@ type Request =
   | { type: 'createTab'; groupId: number }
   | { type: 'close'; id: number }
   | { type: 'rename'; id: number; name: string }
+  | { type: 'setDirectory'; id: number; directory: string }
   | { type: 'select'; groupId: number; tabId: number | null }
   | { type: 'resize'; id: number; cols: number; rows: number }
 

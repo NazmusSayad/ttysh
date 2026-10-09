@@ -2,6 +2,7 @@ import {
   Add01Icon,
   Cancel01Icon,
   Delete02Icon,
+  Folder01Icon,
   ImageAdd01Icon,
   ImageRemove01Icon,
   Menu01Icon,
@@ -33,15 +34,8 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { FolderDialog, RenameDialog } from '@/prompt-dialogs'
 import {
   getState,
   mount,
@@ -57,7 +51,7 @@ import { SettingsPage } from '@/settings-page'
 import { StatusOverlay } from '@/status-overlay'
 
 type Prompt = {
-  type: 'rename' | 'close'
+  type: 'rename' | 'close' | 'folder'
   target: 'tab' | 'group'
   id: number
   name: string
@@ -114,6 +108,14 @@ export function App() {
               item.logo === null
                 ? undefined
                 : () => void removeLogo(item.id).catch(showError)
+            }
+            onSetFolder={() =>
+              setPrompt({
+                type: 'folder',
+                target: 'group',
+                id: item.id,
+                name: item.name,
+              })
             }
             onRename={() =>
               setPrompt({
@@ -348,7 +350,20 @@ export function App() {
       {prompt?.type === 'rename' && (
         <RenameDialog
           key={prompt.id}
-          prompt={prompt}
+          target={prompt.target}
+          id={prompt.id}
+          name={prompt.name}
+          onDone={() => setPrompt(null)}
+        />
+      )}
+      {prompt?.type === 'folder' && (
+        <FolderDialog
+          key={prompt.id}
+          groupId={prompt.id}
+          directory={
+            layout.groups.find((item) => item.id === prompt.id)?.directory ??
+            null
+          }
           onDone={() => setPrompt(null)}
         />
       )}
@@ -415,54 +430,11 @@ function TerminalPane(props: { id: number }) {
   )
 }
 
-function RenameDialog(props: { prompt: Prompt; onDone: () => void }) {
-  const [name, setName] = useState(props.prompt.name)
-
-  return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open) props.onDone()
-      }}
-    >
-      <DialogContent>
-        <form
-          className="grid gap-4"
-          onSubmit={(event) => {
-            event.preventDefault()
-            const trimmed = name.trim()
-            if (props.prompt.target === 'tab' || trimmed)
-              send({ type: 'rename', id: props.prompt.id, name: trimmed })
-            props.onDone()
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle>Rename {props.prompt.target}</DialogTitle>
-          </DialogHeader>
-          <Input
-            aria-label="Name"
-            placeholder={
-              props.prompt.target === 'tab' ? 'Use terminal title' : undefined
-            }
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={props.onDone}>
-              Cancel
-            </Button>
-            <Button type="submit">Rename</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 function ItemMenu(props: {
   closeLabel: string
   onRename: () => void
   onClose: () => void
+  onSetFolder?: () => void
   onChangeLogo?: () => void
   onRemoveLogo?: () => void
   children: ReactNode
@@ -475,6 +447,12 @@ function ItemMenu(props: {
           <HugeiconsIcon icon={PencilEdit02Icon} />
           Rename
         </ContextMenuItem>
+        {props.onSetFolder && (
+          <ContextMenuItem onSelect={props.onSetFolder}>
+            <HugeiconsIcon icon={Folder01Icon} />
+            Set folder…
+          </ContextMenuItem>
+        )}
         {props.onChangeLogo && (
           <ContextMenuItem onSelect={props.onChangeLogo}>
             <HugeiconsIcon icon={ImageAdd01Icon} />

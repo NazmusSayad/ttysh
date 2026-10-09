@@ -17,7 +17,7 @@ use serde_json::json;
 use tokio::sync::mpsc;
 
 use super::{
-    layout::{self, Group, Layout, Tab, remove_tab, tab_ids, unused_name},
+    layout::{self, Group, Layout, Tab, remove_tab, tab_group, tab_ids, unused_name},
     logos,
 };
 use crate::{
@@ -38,6 +38,7 @@ enum Request {
     CreateTab { group_id: u64 },
     Close { id: u64 },
     Rename { id: u64, name: String },
+    SetDirectory { id: u64, directory: String },
     Select { group_id: u64, tab_id: Option<u64> },
     Resize { id: u64, cols: u16, rows: u16 },
 }
@@ -168,6 +169,7 @@ impl App {
                     id,
                     name: unused_name(layout.groups.iter().map(|group| &group.name)),
                     logo: None,
+                    directory: None,
                     tabs: Vec::new(),
                     active_tab: None,
                 });
@@ -190,6 +192,16 @@ impl App {
                         }
                     }
                 }
+            }
+            Request::SetDirectory { id, directory } => {
+                let Some(group) = inner.layout.groups.iter_mut().find(|group| group.id == id)
+                else {
+                    return;
+                };
+                group.directory = match directory.is_empty() {
+                    true => None,
+                    false => Some(directory),
+                };
             }
             Request::Select { group_id, tab_id } => {
                 let Some(group) = inner
@@ -272,7 +284,9 @@ impl App {
                 }
                 for id in &tabs {
                     if !live.contains(id) {
-                        match config::launch() {
+                        let directory = tab_group(&inner.layout, *id)
+                            .and_then(|group| group.directory.as_deref());
+                        match config::launch(directory) {
                             Ok(launch) => self.spawn(*id, &launch),
                             Err(error) => eprintln!(
                                 "could not load config, terminal {id} not started: {error}"
@@ -317,19 +331,19 @@ impl App {
     }
 
     fn create_tab(&self, layout: &mut Layout, group_id: u64) {
-        let mut launch = match config::launch() {
+        let Some(group) = layout.groups.iter_mut().find(|group| group.id == group_id) else {
+            return;
+        };
+        let mut launch = match config::launch(group.directory.as_deref()) {
             Ok(launch) => launch,
             Err(error) => {
                 eprintln!("could not load config, terminal not created: {error}");
                 return;
             }
         };
+        launch.cwd_from = group.active_tab;
         layout.next_id += 1;
         let id = layout.next_id;
-        let Some(group) = layout.groups.iter_mut().find(|group| group.id == group_id) else {
-            return;
-        };
-        launch.cwd_from = group.active_tab;
         group.tabs.push(Tab {
             id,
             custom_name: None,

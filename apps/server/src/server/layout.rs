@@ -18,6 +18,7 @@ pub(super) struct Group {
     pub(super) id: u64,
     pub(super) name: String,
     pub(super) logo: Option<String>,
+    pub(super) directory: Option<String>,
     pub(super) tabs: Vec<Tab>,
     pub(super) active_tab: Option<u64>,
 }
@@ -56,6 +57,13 @@ pub(super) fn remove_tab(layout: &mut Layout, id: u64) -> bool {
         }
     }
     false
+}
+
+pub(super) fn tab_group(layout: &Layout, id: u64) -> Option<&Group> {
+    layout
+        .groups
+        .iter()
+        .find(|group| group.tabs.iter().any(|tab| tab.id == id))
 }
 
 pub(super) fn tab_ids(layout: &Layout) -> Vec<u64> {

@@ -167,7 +167,7 @@ pub async fn platform() -> Json<&'static str> {
     Json(std::env::consts::OS)
 }
 
-pub fn launch() -> Result<Launch, String> {
+pub fn launch(directory: Option<&str>) -> Result<Launch, String> {
     let shells = read()?.shell;
     let shell = match std::env::consts::OS {
         "macos" => shells.macos,
@@ -177,7 +177,10 @@ pub fn launch() -> Result<Launch, String> {
     };
     Ok(Launch {
         command: shell.command,
-        cwd: expand_home(&shell.cwd),
+        cwd: expand_home(match directory {
+            Some(directory) => directory,
+            None => &shell.cwd,
+        }),
         cwd_from: None,
     })
 }
