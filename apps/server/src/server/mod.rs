@@ -16,13 +16,13 @@ use tokio::sync::mpsc;
 use crate::{config, utils::paths::data_directory};
 use app::App;
 
-pub fn run() {
+pub fn run(host: String, port: u16) {
     tokio::runtime::Runtime::new()
         .expect("could not start the async runtime")
-        .block_on(serve());
+        .block_on(serve(host, port));
 }
 
-async fn serve() {
+async fn serve(host: String, port: u16) {
     config::create().expect("could not create the config file");
     let (keeper, frames) = mpsc::unbounded_channel();
     let app = Arc::new(App::new(data_directory().join("layout.json"), keeper));
@@ -32,10 +32,17 @@ async fn serve() {
         .route("/api/config", get(config::handler).put(config::save))
         .fallback(assets::asset)
         .with_state(app);
-    let listener = tokio::net::TcpListener::bind(("0.0.0.0", crate::SERVER_PORT))
-        .await
-        .expect("could not bind the server port");
-    println!("listening on http://0.0.0.0:{}", crate::SERVER_PORT);
+    let listener = match tokio::net::TcpListener::bind((host.as_str(), port)).await {
+        Ok(listener) => listener,
+        Err(error) => {
+            eprintln!("could not listen on {host}:{port}: {error}");
+            std::process::exit(1);
+        }
+    };
+    println!(
+        "listening on http://{}",
+        listener.local_addr().expect("listener has an address")
+    );
     axum::serve(listener, router).await.expect("server failed");
 }
 

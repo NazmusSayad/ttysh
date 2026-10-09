@@ -26,8 +26,13 @@ ttysh
 
 Then open http://localhost:47831.
 
+| Option          | Default     | Description          |
+| --------------- | ----------- | -------------------- |
+| `--host <HOST>` | `127.0.0.1` | Address to listen on |
+| `--port <PORT>` | `47831`     | Port to listen on    |
+
 > [!WARNING]
-> ttysh listens on all network interfaces and has no authentication. Anyone who can reach port 47831 can use your shell. Only run it on networks you trust.
+> ttysh has no authentication. With `--host 0.0.0.0`, anyone who can reach the port can use your shell. Only do that on networks you trust.
 
 Data is stored in `~/.ttysh`.
 
