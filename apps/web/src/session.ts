@@ -53,6 +53,8 @@ type Session = {
   ligatures: LigaturesAddon | null
 }
 
+const replaying = new Set<number>()
+
 export const clientId =
   sessionStorage.getItem('clientId') ??
   Math.random().toString(36).slice(2) + Date.now().toString(36)
@@ -155,8 +157,18 @@ function connect() {
   next.onopen = () => send({ type: 'hello', clientId })
   next.onmessage = (event) => {
     if (event.data instanceof ArrayBuffer) {
-      const id = Number(new DataView(event.data).getBigUint64(0))
-      sessions.get(id)?.terminal.write(new Uint8Array(event.data, 8))
+      const view = new DataView(event.data)
+      const id = Number(view.getBigUint64(0))
+      const replay = view.getUint8(8) === 1
+      const terminal = sessions.get(id)?.terminal
+      if (!terminal) return
+      const data = new Uint8Array(event.data, 9)
+      if (!replay) {
+        terminal.write(data)
+        return
+      }
+      replaying.add(id)
+      terminal.write(data, () => replaying.delete(id))
       return
     }
     handle(JSON.parse(event.data))
@@ -212,13 +224,16 @@ function createSession(id: number) {
   })
   const fit = new FitAddon()
   terminal.loadAddon(fit)
-  terminal.onData((data) => sendInput(id, applyCtrl(data)))
-  terminal.onBinary((data) =>
+  terminal.onData((data) => {
+    if (!replaying.has(id)) sendInput(id, applyCtrl(data))
+  })
+  terminal.onBinary((data) => {
+    if (replaying.has(id)) return
     sendInput(
       id,
       Uint8Array.from(data, (character) => character.charCodeAt(0))
     )
-  )
+  })
   terminal.onTitleChange((title) =>
     setState({ titles: { ...state.titles, [id]: title } })
   )

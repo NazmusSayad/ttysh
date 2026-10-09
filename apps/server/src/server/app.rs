@@ -257,7 +257,7 @@ impl App {
         match message.kind {
             frame::OUTPUT => {
                 if !inner.pending.contains(&message.id) {
-                    forward(inner, message.id, &message.payload);
+                    forward(inner, message.id, false, &message.payload);
                 }
             }
             frame::SNAPSHOT => {
@@ -267,7 +267,7 @@ impl App {
                 }
                 let generation = frame::read_u64(&message.payload);
                 if generation == inner.generation && inner.pending.remove(&message.id) {
-                    forward(inner, message.id, &message.payload[8..]);
+                    forward(inner, message.id, true, &message.payload[8..]);
                 }
             }
             frame::EXIT => {
@@ -452,11 +452,12 @@ fn publish(inner: &Inner) {
     }
 }
 
-fn forward(inner: &Inner, id: u64, data: &[u8]) {
+fn forward(inner: &Inner, id: u64, replay: bool, data: &[u8]) {
     let Some(client) = &inner.active else {
         return;
     };
     let mut bytes = id.to_be_bytes().to_vec();
+    bytes.push(u8::from(replay));
     bytes.extend_from_slice(data);
     let _ = client.sender.send(Message::Binary(bytes.into()));
 }
