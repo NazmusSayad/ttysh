@@ -17,7 +17,12 @@ pub(super) async fn asset(uri: Uri) -> Response {
         true => "public, max-age=31536000, immutable",
         false => "no-cache",
     };
-    match Assets::get(path) {
+    let file = match Assets::get(path) {
+        Some(file) => Some(file),
+        None if path.contains('.') => None,
+        None => Assets::get("index.html"),
+    };
+    match file {
         Some(file) => (
             [
                 (header::CONTENT_TYPE, file.metadata.mimetype().to_string()),

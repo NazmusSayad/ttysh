@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client'
 import { App } from './app'
 import { applyStyle, loadConfig, loadPlatform } from './config'
 import { start } from './session'
+import { SettingsPage } from './settings-page'
 
 const root = document.getElementById('root')
 if (!root) throw new Error('root element missing')
@@ -13,6 +14,15 @@ async function main(container: HTMLElement) {
   try {
     const [config, platform] = await Promise.all([loadConfig(), loadPlatform()])
     await applyStyle(config)
+    if (location.pathname === '/settings') {
+      document.title = 'Settings'
+      createRoot(container).render(
+        <StrictMode>
+          <SettingsPage config={config} platform={platform} />
+        </StrictMode>
+      )
+      return
+    }
     start(config, platform)
     createRoot(container).render(
       <StrictMode>

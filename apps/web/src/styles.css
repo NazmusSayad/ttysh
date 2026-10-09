@@ -4,6 +4,44 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@theme {
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-blink: blink 1.4s steps(1) infinite;
+  --animate-breathe: breathe 6s ease-in-out infinite;
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+  }
+
+  @keyframes blink {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0;
+    }
+  }
+
+  @keyframes breathe {
+    0%,
+    100% {
+      opacity: 0.4;
+      transform: scale(0.9);
+    }
+    50% {
+      opacity: 0.8;
+      transform: scale(1.05);
+    }
+  }
+}
+
 @font-face {
   font-family: 'JetBrainsMono Nerd Font';
   font-weight: normal;

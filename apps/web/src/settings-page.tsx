@@ -1,4 +1,4 @@
-import { Menu01Icon } from '@hugeicons/core-free-icons'
+import { ArrowLeft01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { type ReactNode, useRef, useState } from 'react'
 import {
@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import {
+  applyStyle,
   builtinFonts,
   loadDefaults,
   type Config,
@@ -32,7 +33,6 @@ import {
   type Shell,
 } from '@/config'
 import { cn } from '@/lib/utils'
-import { applyConfig, getState } from '@/session'
 
 type Colors = Config['colors']
 
@@ -50,13 +50,13 @@ const namedColors: {
 
 const hexColor = /^#[0-9a-f]{6}$/i
 
-export function SettingsPage(props: { onMenu: () => void }) {
-  const [draft, setDraft] = useState(getState().config)
+export function SettingsPage(props: { config: Config; platform: Platform }) {
+  const [draft, setDraft] = useState(props.config)
   const [customFont, setCustomFont] = useState(
     !builtinFonts.some((font) => font.family === draft.font.family)
   )
   const [error, setError] = useState<string | null>(null)
-  const [platform, setPlatform] = useState(getState().platform)
+  const [platform, setPlatform] = useState(props.platform)
   const shell = draft.shell[platform]
   const timer = useRef<number | undefined>(undefined)
   const [confirming, setConfirming] = useState(false)
@@ -64,7 +64,7 @@ export function SettingsPage(props: { onMenu: () => void }) {
 
   function commit(next: Config) {
     setDraft(next)
-    void applyConfig(next)
+    void applyStyle(next)
     window.clearTimeout(timer.current)
     timer.current = window.setTimeout(() => {
       saveConfig(next).then(
@@ -103,17 +103,19 @@ export function SettingsPage(props: { onMenu: () => void }) {
   }
 
   return (
-    <div className="min-w-0 flex-1 overflow-auto px-6 pt-4 pb-7">
+    <div className="h-dvh overflow-auto px-6 pt-4 pb-7">
       <div key={revision} className="mx-auto w-full max-w-160 space-y-5">
         <div className="mb-6 flex h-9 min-w-0 items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
-            className="-ml-2 md:hidden"
-            aria-label="Groups"
-            onClick={props.onMenu}
+            className="-ml-2"
+            aria-label="Back to terminal"
+            asChild
           >
-            <HugeiconsIcon icon={Menu01Icon} />
+            <a href="/">
+              <HugeiconsIcon icon={ArrowLeft01Icon} />
+            </a>
           </Button>
           <h1 className="shrink-0 text-xl font-semibold tracking-tight">
             Settings
@@ -148,7 +150,7 @@ export function SettingsPage(props: { onMenu: () => void }) {
                 {platforms.map((item) => (
                   <SelectItem key={item.value} value={item.value}>
                     {item.label}
-                    {item.value === getState().platform && (
+                    {item.value === props.platform && (
                       <span className="text-muted-foreground">
                         (this device)
                       </span>

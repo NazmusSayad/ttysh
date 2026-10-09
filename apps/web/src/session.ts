@@ -44,6 +44,7 @@ type Message =
   | { type: 'active'; layout: Layout }
   | { type: 'layout'; layout: Layout }
   | { type: 'paused' }
+  | { type: 'config'; config: Config }
 
 type Session = {
   terminal: Terminal
@@ -170,6 +171,10 @@ function connect() {
 }
 
 function handle(message: Message) {
+  if (message.type === 'config') {
+    void applyConfig(message.config)
+    return
+  }
   if (message.type === 'paused') {
     setState({ status: 'paused' })
     return

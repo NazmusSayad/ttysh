@@ -177,7 +177,16 @@ impl App {
                 self.create_tab(layout, id);
             }
             Request::CreateTab { group_id } => self.create_tab(&mut inner.layout, group_id),
-            Request::Close { id } => self.close(&mut inner.layout, id),
+            Request::Close { id } => {
+                let group_id = tab_group(&inner.layout, id).map(|group| group.id);
+                self.close(&mut inner.layout, id);
+                let reopen = inner.layout.groups.iter().any(|group| {
+                    Some(group.id) == group_id && group.tabs.is_empty() && group.directory.is_some()
+                });
+                if let (true, Some(group_id)) = (reopen, group_id) {
+                    self.create_tab(&mut inner.layout, group_id);
+                }
+            }
             Request::Rename { id, name } => {
                 for group in &mut inner.layout.groups {
                     if group.id == id && !name.is_empty() {
@@ -419,6 +428,18 @@ impl App {
 
     fn to_keeper(&self, bytes: Vec<u8>) {
         let _ = self.keeper.send(bytes);
+    }
+}
+
+impl App {
+    pub(super) fn publish_config(&self, config: &config::Config) {
+        let inner = self.inner.lock().unwrap();
+        if let Some(client) = &inner.active {
+            send(
+                &client.sender,
+                json!({ "type": "config", "config": config }),
+            );
+        }
     }
 }
 

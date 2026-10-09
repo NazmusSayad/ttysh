@@ -150,13 +150,13 @@ pub async fn handler() -> Result<Json<Config>, (StatusCode, String)> {
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error))
 }
 
-pub async fn save(Json(config): Json<Config>) -> Result<Json<Config>, (StatusCode, String)> {
+pub fn save(config: Config) -> Result<Config, (StatusCode, String)> {
     validate(&config).map_err(|error| (StatusCode::BAD_REQUEST, error))?;
     let mut text = serde_json::to_string_pretty(&config).expect("config serializes");
     text.push('\n');
     write_atomic(&path(), text.as_bytes())
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    Ok(Json(config))
+    Ok(config)
 }
 
 pub async fn defaults() -> Json<Config> {

@@ -1,5 +1,6 @@
 mod app;
 mod assets;
+mod directories;
 mod keeper_link;
 mod layout;
 mod logos;
@@ -7,8 +8,9 @@ mod logos;
 use std::sync::Arc;
 
 use axum::{
-    Router,
+    Json, Router,
     extract::{State, WebSocketUpgrade},
+    http::StatusCode,
     response::Response,
     routing::{get, put},
 };
@@ -30,9 +32,10 @@ async fn serve(host: String, port: u16) {
     tokio::spawn(keeper_link::link(app.clone(), frames));
     let router = Router::new()
         .route("/ws", get(socket))
-        .route("/api/config", get(config::handler).put(config::save))
+        .route("/api/config", get(config::handler).put(save_config))
         .route("/api/config/defaults", get(config::defaults))
         .route("/api/platform", get(config::platform))
+        .route("/api/directories", get(directories::list))
         .route(
             "/api/groups/{id}/logo",
             put(logos::upload).delete(logos::remove),
@@ -52,6 +55,15 @@ async fn serve(host: String, port: u16) {
         listener.local_addr().expect("listener has an address")
     );
     axum::serve(listener, router).await.expect("server failed");
+}
+
+async fn save_config(
+    State(app): State<Arc<App>>,
+    Json(config): Json<config::Config>,
+) -> Result<Json<config::Config>, (StatusCode, String)> {
+    let config = config::save(config)?;
+    app.publish_config(&config);
+    Ok(Json(config))
 }
 
 async fn socket(upgrade: WebSocketUpgrade, State(app): State<Arc<App>>) -> Response {
