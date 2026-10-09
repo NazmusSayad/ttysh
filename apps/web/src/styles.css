@@ -4,6 +4,62 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@font-face {
+  font-family: 'JetBrainsMono Nerd Font';
+  font-weight: normal;
+  font-display: block;
+  src: url('./fonts/JetBrainsMono-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrainsMono Nerd Font';
+  font-weight: bold;
+  font-display: block;
+  src: url('./fonts/JetBrainsMono-Bold.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'FiraCode Nerd Font';
+  font-weight: normal;
+  font-display: block;
+  src: url('./fonts/FiraCode-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'FiraCode Nerd Font';
+  font-weight: bold;
+  font-display: block;
+  src: url('./fonts/FiraCode-Bold.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'CaskaydiaCove Nerd Font';
+  font-weight: normal;
+  font-display: block;
+  src: url('./fonts/CaskaydiaCove-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'CaskaydiaCove Nerd Font';
+  font-weight: bold;
+  font-display: block;
+  src: url('./fonts/CaskaydiaCove-Bold.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Hack Nerd Font';
+  font-weight: normal;
+  font-display: block;
+  src: url('./fonts/Hack-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Hack Nerd Font';
+  font-weight: bold;
+  font-display: block;
+  src: url('./fonts/Hack-Bold.woff2') format('woff2');
+}
+
 :root {
   color-scheme: dark;
   --background: var(--bg);

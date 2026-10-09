@@ -42,6 +42,13 @@ export const paletteNames = paletteKeys.map((key) => {
   return words[0].toUpperCase() + words.slice(1)
 })
 
+export const builtinFonts = [
+  { family: 'FiraCode Nerd Font', label: 'Fira Code' },
+  { family: 'JetBrainsMono Nerd Font', label: 'JetBrains Mono' },
+  { family: 'CaskaydiaCove Nerd Font', label: 'Cascadia Code' },
+  { family: 'Hack Nerd Font', label: 'Hack' },
+]
+
 export async function loadConfig() {
   const response = await fetch('/api/config')
   if (!response.ok) throw new Error(await response.text())
@@ -59,7 +66,11 @@ export async function saveConfig(config: Config) {
 }
 
 export async function applyStyle(config: Config) {
-  await document.fonts.load(`${config.font.size}px ${config.font.family}`)
+  const font = `${config.font.size}px ${config.font.family}`
+  await Promise.all([
+    document.fonts.load(font),
+    document.fonts.load(`bold ${font}`),
+  ])
   const style = document.documentElement.style
   style.setProperty('--bg', config.colors.background)
   style.setProperty('--text', config.colors.foreground)

@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { type Config, paletteNames, saveConfig } from '@/config'
+import { builtinFonts, type Config, paletteNames, saveConfig } from '@/config'
 import { applyConfig, getState } from '@/session'
 
 type Colors = Config['colors']
@@ -37,6 +37,9 @@ const namedColors: {
 
 export function SettingsDialog(props: { onDone: () => void }) {
   const [draft, setDraft] = useState(getState().config)
+  const [customFont, setCustomFont] = useState(
+    !builtinFonts.some((font) => font.family === draft.font.family)
+  )
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -96,13 +99,37 @@ export function SettingsDialog(props: { onDone: () => void }) {
           </Section>
           <Section title="Font">
             <Field label="Family">
-              <Input
-                value={draft.font.family}
-                onChange={(event) =>
-                  update('font', { family: event.target.value })
-                }
-              />
+              <Select
+                value={customFont ? 'custom' : draft.font.family}
+                onValueChange={(family) => {
+                  setCustomFont(family === 'custom')
+                  if (family !== 'custom') update('font', { family })
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {builtinFonts.map((font) => (
+                    <SelectItem key={font.family} value={font.family}>
+                      {font.label}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
             </Field>
+            {customFont && (
+              <Field label="Custom family">
+                <Input
+                  placeholder="Installed font name"
+                  value={draft.font.family}
+                  onChange={(event) =>
+                    update('font', { family: event.target.value })
+                  }
+                />
+              </Field>
+            )}
             <Field label="Size">
               <NumberInput
                 value={draft.font.size}
