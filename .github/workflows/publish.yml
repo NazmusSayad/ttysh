@@ -74,5 +74,5 @@ jobs:
           path: dist/npm/bin
       - run: chmod +x dist/npm/bin/*/ttysh
 
-      - run: npm publish --access public
+      - run: npm publish --access public --tag ${{ github.event.release.prerelease && 'next' || 'latest' }}
         working-directory: dist/npm
