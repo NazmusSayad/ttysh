@@ -1,8 +1,8 @@
 import {
-  ArrowUp01Icon,
+  ArrowUp02Icon,
   Cancel01Icon,
   Folder01Icon,
-  Home01Icon,
+  Home07Icon,
   Search01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
@@ -135,24 +135,25 @@ export function FolderDialog(props: {
           <Button
             variant="ghost"
             size="icon-sm"
+            aria-label="Home folder"
+            onClick={() => open('~')}
+          >
+            <HugeiconsIcon icon={Home07Icon} />
+          </Button>
+          <div className="bg-border mx-0.5 h-4 w-px" />
+          <Button
+            variant="ghost"
+            size="icon-sm"
             aria-label="Parent folder"
             disabled={!listing?.parent}
             onClick={() => {
               if (listing?.parent) open(listing.parent)
             }}
           >
-            <HugeiconsIcon icon={ArrowUp01Icon} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Home folder"
-            onClick={() => open('~')}
-          >
-            <HugeiconsIcon icon={Home01Icon} />
+            <HugeiconsIcon icon={ArrowUp02Icon} />
           </Button>
           <p
-            className="min-w-0 flex-1 truncate px-1.5 text-left font-mono text-xs [direction:rtl]"
+            className="-ml-1 min-w-0 flex-1 truncate pr-1.5 text-left font-mono text-xs [direction:rtl]"
             title={listing?.path}
           >
             <bdi>{listing?.path}</bdi>
