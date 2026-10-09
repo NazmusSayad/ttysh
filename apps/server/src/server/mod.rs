@@ -5,6 +5,7 @@ mod keeper_link;
 mod layout;
 mod logos;
 mod restart;
+mod shells;
 
 use std::{
     io::{self, Read},
@@ -49,6 +50,7 @@ async fn serve(host: String, port: u16) {
         .route("/api/config/defaults", get(config::defaults))
         .route("/api/platform", get(config::platform))
         .route("/api/directories", get(directories::list))
+        .route("/api/shells", get(shells::list))
         .route(
             "/api/groups/{id}/logo",
             put(logos::upload).delete(logos::remove),

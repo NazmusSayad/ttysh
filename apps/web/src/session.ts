@@ -108,7 +108,7 @@ function setState(next: Partial<State>) {
     (item) => item.id === state.layout.activeGroup
   )
   const tab = group?.tabs.find((item) => item.id === group.activeTab)
-  document.title = tab ? tabTitle(tab) : 'ttysh'
+  document.title = tab ? tabTitle(tab) : group ? group.name : 'ttysh'
   updateFavicon(group ? group.logo : null, state.config.colors)
   for (const listener of listeners) listener()
 }

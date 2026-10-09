@@ -1,6 +1,6 @@
 import { ArrowDown01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import type { Platform } from '@/config'
 
@@ -23,27 +23,21 @@ const logos = {
   cmd: 'M8.165 6V3h7.665v3H8.165zm-.5-3H1c-.55 0-1 .45-1 1v2h7.665V3zM23 3h-6.67v3H24V4c0-.55-.45-1-1-1zM0 6.5h24V20c0 .55-.45 1-1 1H1c-.55 0-1-.45-1-1V6.5zM11.5 18c0 .3.2.5.5.5h8c.3 0 .5-.2.5-.5v-1.5c0-.3-.2-.5-.5-.5h-8c-.3 0-.5.2-.5.5V18zm-5.2-4.55l-3.1 3.1c-.25.25-.25.6 0 .8l.9.9c.25.25.6.25.8 0l4.4-4.4a.52.52 0 0 0 0-.8l-4.4-4.4c-.2-.2-.6-.2-.8 0l-.9.9c-.25.2-.25.55 0 .8l3.1 3.1z',
 }
 
-const shells: Record<
-  Platform,
-  { command: string; logo: keyof typeof logos }[]
-> = {
-  macos: [
-    { command: 'zsh', logo: 'zsh' },
-    { command: 'bash', logo: 'bash' },
-    { command: 'fish', logo: 'fish' },
-    { command: 'pwsh', logo: 'powershell' },
-  ],
-  linux: [
-    { command: 'bash', logo: 'bash' },
-    { command: 'zsh', logo: 'zsh' },
-    { command: 'fish', logo: 'fish' },
-    { command: 'pwsh', logo: 'powershell' },
-  ],
-  windows: [
-    { command: 'pwsh', logo: 'powershell' },
-    { command: 'powershell', logo: 'powershell' },
-    { command: 'cmd', logo: 'cmd' },
-  ],
+type Shell = { name: string; path: string | null }
+
+const logoNames: Record<string, keyof typeof logos> = {
+  zsh: 'zsh',
+  bash: 'bash',
+  fish: 'fish',
+  pwsh: 'powershell',
+  powershell: 'powershell',
+  cmd: 'cmd',
+}
+
+const knownShells: Record<Platform, string[]> = {
+  macos: ['zsh', 'bash', 'fish', 'pwsh'],
+  linux: ['bash', 'zsh', 'fish', 'pwsh'],
+  windows: ['pwsh', 'powershell', 'cmd'],
 }
 
 function logoFor(command: string) {
@@ -53,9 +47,17 @@ function logoFor(command: string) {
     .pop()
     ?.toLowerCase()
     .replace(/\.exe$/, '')
-  return Object.values(shells)
-    .flat()
-    .find((shell) => shell.command === name)?.logo
+  return name === undefined ? undefined : logoNames[name]
+}
+
+function folderOf(path: string) {
+  return path.replace(/[\\/][^\\/]*$/, '')
+}
+
+async function loadShells() {
+  const response = await fetch('/api/shells')
+  if (!response.ok) throw new Error(await response.text())
+  return (await response.json()) as { name: string; path: string }[]
 }
 
 function ShellLogo(props: { logo: keyof typeof logos }) {
@@ -68,11 +70,25 @@ function ShellLogo(props: { logo: keyof typeof logos }) {
 
 export function ShellInput(props: {
   platform: Platform
+  device: Platform
   value: string | null
   onCommit: (command: string | null) => void
 }) {
   const [text, setText] = useState(props.value ?? '')
+  const [installed, setInstalled] = useState<Shell[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const logo = logoFor(text)
+  const isDevice = props.platform === props.device
+  const shells: Shell[] | null = isDevice
+    ? installed
+    : knownShells[props.platform].map((name) => ({ name, path: null }))
+
+  useEffect(() => {
+    if (!isDevice) return
+    loadShells().then(setInstalled, (failure: unknown) =>
+      setError(failure instanceof Error ? failure.message : String(failure))
+    )
+  }, [isDevice])
 
   function commit(next: string) {
     setText(next)
@@ -108,14 +124,30 @@ export function ShellInput(props: {
             <HugeiconsIcon icon={ArrowDown01Icon} />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          {shells[props.platform].map((shell) => (
+        <DropdownMenuContent align="end" className="w-72">
+          {error && (
+            <p className="text-destructive px-2 py-1.5 text-xs">{error}</p>
+          )}
+          {shells?.length === 0 && (
+            <p className="text-muted-foreground px-2 py-1.5 text-xs">
+              No known shells found
+            </p>
+          )}
+          {shells?.map((shell) => (
             <DropdownMenuItem
-              key={shell.command}
-              onSelect={() => commit(shell.command)}
+              key={shell.path ?? shell.name}
+              onSelect={() => commit(shell.path ?? shell.name)}
             >
-              <ShellLogo logo={shell.logo} />
-              {shell.command}
+              <ShellLogo logo={logoNames[shell.name]} />
+              {shell.name}
+              {shell.path !== null && (
+                <span
+                  className="text-muted-foreground ml-auto min-w-0 truncate pl-3 text-xs [direction:rtl]"
+                  title={shell.path}
+                >
+                  <bdi>{folderOf(shell.path)}</bdi>
+                </span>
+              )}
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />

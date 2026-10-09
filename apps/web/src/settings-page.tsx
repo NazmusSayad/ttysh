@@ -166,6 +166,7 @@ export function SettingsPage(props: { config: Config; platform: Platform }) {
             <ShellInput
               key={`${platform}-command`}
               platform={platform}
+              device={props.platform}
               value={shell.command}
               onCommit={(command) => updateShell({ command })}
             />

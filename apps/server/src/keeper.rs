@@ -275,11 +275,19 @@ fn shell_command(launch: &Launch) -> CommandBuilder {
     let shell = command.get_shell();
     command.env("SHELL", &shell);
     command.env("LANG", "en_US.UTF-8");
+    if let Some(path) = std::env::var_os("PATH") {
+        command.env("PATH", path);
+    }
     let program = match &launch.command {
         Some(program) => program.clone(),
         None => format!("'{shell}'"),
     };
-    command.args(["--noprofile", "--norc", "-c", &format!("exec -l {program}")]);
+    command.args([
+        "--noprofile",
+        "--norc",
+        "-c",
+        &format!("export -n PATH; exec -l {program}"),
+    ]);
     command
 }
 
