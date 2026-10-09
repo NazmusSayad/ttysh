@@ -17,12 +17,20 @@ const DEFAULT: &str = include_str!("default-config.json");
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
-    shell: Shell,
+    shell: Shells,
     font: Font,
     cursor: Cursor,
     padding: Padding,
     scrollback: u32,
     colors: Colors,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Shells {
+    macos: Shell,
+    linux: Shell,
+    windows: Shell,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -149,8 +157,18 @@ pub async fn save(Json(config): Json<Config>) -> Result<Json<Config>, (StatusCod
     Ok(Json(config))
 }
 
+pub async fn platform() -> Json<&'static str> {
+    Json(std::env::consts::OS)
+}
+
 pub fn launch() -> Result<Launch, String> {
-    let shell = read()?.shell;
+    let shells = read()?.shell;
+    let shell = match std::env::consts::OS {
+        "macos" => shells.macos,
+        "linux" => shells.linux,
+        "windows" => shells.windows,
+        other => return Err(format!("unsupported platform {other}")),
+    };
     Ok(Launch {
         command: shell.command,
         cwd: expand_home(&shell.cwd),

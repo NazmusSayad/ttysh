@@ -11,7 +11,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { builtinFonts, type Config, paletteNames, saveConfig } from '@/config'
+import {
+  builtinFonts,
+  type Config,
+  paletteNames,
+  type Platform,
+  platforms,
+  saveConfig,
+  type Shell,
+} from '@/config'
 import { cn } from '@/lib/utils'
 import { applyConfig, getState } from '@/session'
 
@@ -40,6 +48,8 @@ export function SettingsPage(props: {
     !builtinFonts.some((font) => font.family === draft.font.family)
   )
   const [error, setError] = useState<string | null>(null)
+  const [platform, setPlatform] = useState(getState().platform)
+  const shell = draft.shell[platform]
   const timer = useRef<number | undefined>(undefined)
 
   function commit(next: Config) {
@@ -53,6 +63,13 @@ export function SettingsPage(props: {
           setError(failure instanceof Error ? failure.message : String(failure))
       )
     }, 300)
+  }
+
+  function updateShell(value: Partial<Shell>) {
+    commit({
+      ...draft,
+      shell: { ...draft.shell, [platform]: { ...shell, ...value } },
+    })
   }
 
   function update<Key extends Exclude<keyof Config, 'scrollback'>>(
@@ -97,19 +114,43 @@ export function SettingsPage(props: {
           </p>
         )}
         <Section title="Shell" note="Applies to new terminals">
+          <Row label="Platform">
+            <Select
+              value={platform}
+              onValueChange={(value: Platform) => setPlatform(value)}
+            >
+              <SelectTrigger className="w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {platforms.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                    {item.value === getState().platform && (
+                      <span className="text-muted-foreground">
+                        (this device)
+                      </span>
+                    )}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Row>
           <Row label="Command">
             <TextInput
+              key={`${platform}-command`}
               placeholder="System default"
-              value={draft.shell.command ?? ''}
+              value={shell.command ?? ''}
               onCommit={(command) =>
-                update('shell', { command: command === '' ? null : command })
+                updateShell({ command: command === '' ? null : command })
               }
             />
           </Row>
           <Row label="Working directory">
             <TextInput
-              value={draft.shell.cwd}
-              onCommit={(cwd) => update('shell', { cwd })}
+              key={`${platform}-cwd`}
+              value={shell.cwd}
+              onCommit={(cwd) => updateShell({ cwd })}
             />
           </Row>
         </Section>

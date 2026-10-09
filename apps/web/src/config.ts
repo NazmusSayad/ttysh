@@ -1,7 +1,11 @@
 import type { ITerminalOptions } from '@xterm/xterm'
 
+export type Platform = 'macos' | 'linux' | 'windows'
+
+export type Shell = { command: string | null; cwd: string }
+
 export type Config = {
-  shell: { command: string | null; cwd: string }
+  shell: Record<Platform, Shell>
   font: { family: string; size: number; lineHeight: number; ligatures: boolean }
   cursor: { style: 'block' | 'bar' | 'underline'; blink: boolean }
   padding: { top: number; right: number; bottom: number; left: number }
@@ -53,6 +57,21 @@ export async function loadConfig() {
   const response = await fetch('/api/config')
   if (!response.ok) throw new Error(await response.text())
   return (await response.json()) as Config
+}
+
+export const platforms: { value: Platform; label: string }[] = [
+  { value: 'macos', label: 'macOS' },
+  { value: 'linux', label: 'Linux' },
+  { value: 'windows', label: 'Windows' },
+]
+
+export async function loadPlatform() {
+  const response = await fetch('/api/platform')
+  if (!response.ok) throw new Error(await response.text())
+  const platform = (await response.json()) as string
+  const known = platforms.find((item) => item.value === platform)
+  if (!known) throw new Error(`unsupported platform ${platform}`)
+  return known.value
 }
 
 export async function saveConfig(config: Config) {

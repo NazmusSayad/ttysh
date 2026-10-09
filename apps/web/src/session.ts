@@ -2,7 +2,12 @@ import { FitAddon } from '@xterm/addon-fit'
 import { LigaturesAddon } from '@xterm/addon-ligatures'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal } from '@xterm/xterm'
-import { applyStyle, type Config, terminalOptions } from './config'
+import {
+  applyStyle,
+  type Config,
+  type Platform,
+  terminalOptions,
+} from './config'
 import { updateFavicon } from './favicon'
 
 type Tab = { id: number; customName: string | null }
@@ -19,6 +24,7 @@ type State = {
   layout: Layout
   ctrl: boolean
   config: Config
+  platform: Platform
   titles: Record<number, string>
 }
 
@@ -56,12 +62,13 @@ let state: State
 let socket: WebSocket
 let hiddenAt = 0
 
-export function start(config: Config) {
+export function start(config: Config, platform: Platform) {
   state = {
     status: 'connecting',
     layout: { groups: [], activeGroup: null, nextId: 0 },
     ctrl: false,
     config,
+    platform,
     titles: {},
   }
   socket = connect()

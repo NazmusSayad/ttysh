@@ -1,7 +1,17 @@
 {
   "shell": {
-    "command": null,
-    "cwd": "~"
+    "macos": {
+      "command": null,
+      "cwd": "~"
+    },
+    "linux": {
+      "command": null,
+      "cwd": "~"
+    },
+    "windows": {
+      "command": null,
+      "cwd": "~"
+    }
   },
   "font": {
     "family": "FiraCode Nerd Font",
