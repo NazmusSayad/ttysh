@@ -148,6 +148,16 @@ fn handle(keeper: &Shared, message: Frame) {
             }
             state.send(frame::encode(frame::SNAPSHOT, message.id, &payload));
         }
+        frame::SHUTDOWN => {
+            eprintln!("keeper: shutting down");
+            let mut state = keeper.try_lock();
+            if let Ok(state) = &mut state {
+                for session in state.sessions.values_mut() {
+                    let _ = session.killer.kill();
+                }
+            }
+            std::process::exit(0);
+        }
         kind => eprintln!("keeper: unknown frame kind {kind}"),
     }
 }

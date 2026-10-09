@@ -33,6 +33,7 @@ import {
   type Shell,
 } from '@/config'
 import { cn } from '@/lib/utils'
+import { RestartRows } from '@/restart'
 import { ShellInput } from '@/shell-input'
 
 type Colors = Config['colors']
@@ -317,6 +318,9 @@ export function SettingsPage(props: { config: Config; platform: Platform }) {
               </div>
             </Row>
           ))}
+        </Section>
+        <Section title="Restart">
+          <RestartRows />
         </Section>
       </div>
       <AlertDialog open={confirming} onOpenChange={setConfirming}>

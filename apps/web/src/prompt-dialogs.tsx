@@ -1,5 +1,6 @@
 import {
   ArrowUp01Icon,
+  Cancel01Icon,
   Folder01Icon,
   Home01Icon,
   Search01Icon,
@@ -9,8 +10,8 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
+  DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -124,14 +125,12 @@ export function FolderDialog(props: {
         if (!open) props.onDone()
       }}
     >
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Group folder</DialogTitle>
-          <DialogDescription>
-            Open folders to browse, then use the one shown at the top. New tabs
-            in this group start there.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent
+        className="sm:max-w-lg"
+        showCloseButton={false}
+        aria-describedby={undefined}
+      >
+        <DialogTitle className="sr-only">Group folder</DialogTitle>
         <div className="grid gap-2">
           <div className="overflow-hidden rounded-lg border">
             <div className="flex items-center gap-1 border-b p-1">
@@ -160,6 +159,11 @@ export function FolderDialog(props: {
               >
                 <bdi>{listing?.path}</bdi>
               </p>
+              <DialogClose asChild>
+                <Button variant="ghost" size="icon-sm" aria-label="Close">
+                  <HugeiconsIcon icon={Cancel01Icon} />
+                </Button>
+              </DialogClose>
             </div>
             <label className="flex h-9 items-center gap-2.5 border-b px-3">
               <HugeiconsIcon
@@ -208,9 +212,6 @@ export function FolderDialog(props: {
               Clear
             </Button>
           )}
-          <Button variant="outline" onClick={props.onDone}>
-            Cancel
-          </Button>
           <Button
             disabled={!listing}
             onClick={() => {

@@ -7,6 +7,7 @@ pub const INPUT: u8 = 2;
 pub const RESIZE: u8 = 3;
 pub const KILL: u8 = 4;
 pub const REPLAY: u8 = 5;
+pub const SHUTDOWN: u8 = 6;
 pub const LIST: u8 = 10;
 pub const OUTPUT: u8 = 11;
 pub const SNAPSHOT: u8 = 12;

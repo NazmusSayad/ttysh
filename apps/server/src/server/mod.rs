@@ -4,15 +4,19 @@ mod directories;
 mod keeper_link;
 mod layout;
 mod logos;
+mod restart;
 
-use std::sync::Arc;
+use std::{
+    io::{self, Read},
+    sync::Arc,
+};
 
 use axum::{
     Json, Router,
     extract::{State, WebSocketUpgrade},
     http::StatusCode,
     response::Response,
-    routing::{get, put},
+    routing::{get, post, put},
 };
 use tokio::sync::mpsc;
 
@@ -20,6 +24,15 @@ use crate::{config, utils::paths::data_directory};
 use app::App;
 
 pub fn run(host: String, port: u16) {
+    std::thread::spawn(|| {
+        let mut byte = [0];
+        loop {
+            match io::stdin().read(&mut byte) {
+                Ok(0) | Err(_) => std::process::exit(0),
+                Ok(_) => {}
+            }
+        }
+    });
     tokio::runtime::Runtime::new()
         .expect("could not start the async runtime")
         .block_on(serve(host, port));
@@ -41,6 +54,9 @@ async fn serve(host: String, port: u16) {
             put(logos::upload).delete(logos::remove),
         )
         .route("/api/logos/{file}", get(logos::serve))
+        .route("/api/instance", get(restart::instance))
+        .route("/api/restart/server", post(restart::server))
+        .route("/api/restart/everything", post(restart::everything))
         .fallback(assets::asset)
         .with_state(app);
     let listener = match tokio::net::TcpListener::bind((host.as_str(), port)).await {

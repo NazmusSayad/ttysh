@@ -3,8 +3,9 @@ use std::{
     path::PathBuf,
     sync::{
         Arc, Mutex,
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use axum::{
@@ -14,7 +15,7 @@ use axum::{
 use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
 use serde_json::json;
-use tokio::sync::mpsc;
+use tokio::sync::{Notify, mpsc};
 
 use super::{
     layout::{self, Group, Layout, Tab, remove_tab, tab_group, tab_ids, unused_name},
@@ -61,6 +62,9 @@ pub(super) struct App {
     keeper: mpsc::UnboundedSender<Vec<u8>>,
     path: PathBuf,
     connections: AtomicU64,
+    pub(super) instance: String,
+    pub(super) stopping: AtomicBool,
+    pub(super) keeper_gone: Notify,
 }
 
 impl App {
@@ -75,6 +79,13 @@ impl App {
             keeper,
             path,
             connections: AtomicU64::new(0),
+            instance: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system clock is after 1970")
+                .as_millis()
+                .to_string(),
+            stopping: AtomicBool::new(false),
+            keeper_gone: Notify::new(),
         }
     }
 }
@@ -252,6 +263,9 @@ impl App {
     }
 
     pub(super) fn keeper_frame(&self, message: Frame) {
+        if self.stopping.load(Ordering::SeqCst) {
+            return;
+        }
         let mut guard = self.inner.lock().unwrap();
         let inner = &mut *guard;
         match message.kind {
@@ -326,7 +340,7 @@ impl App {
         inner.generation += 1;
         send(
             &client.sender,
-            json!({ "type": "active", "layout": inner.layout }),
+            json!({ "type": "active", "layout": inner.layout, "instance": self.instance }),
         );
         inner.pending.clear();
         for id in tab_ids(&inner.layout) {
@@ -432,6 +446,24 @@ impl App {
 }
 
 impl App {
+    pub(super) async fn stop_keeper(&self) -> Result<(), String> {
+        let gone = self.keeper_gone.notified();
+        tokio::pin!(gone);
+        gone.as_mut().enable();
+        self.stopping.store(true, Ordering::SeqCst);
+        self.to_keeper(frame::encode(frame::SHUTDOWN, 0, &[]));
+        if tokio::time::timeout(Duration::from_secs(5), gone)
+            .await
+            .is_ok()
+        {
+            return Ok(());
+        }
+        self.stopping.store(false, Ordering::SeqCst);
+        let mut inner = self.inner.lock().unwrap();
+        self.reset(&mut inner);
+        Err("The keeper did not stop within 5 seconds. It may be from an older ttysh version; stop the \"ttysh keeper\" process manually and try again.".to_string())
+    }
+
     pub(super) fn publish_config(&self, config: &config::Config) {
         let inner = self.inner.lock().unwrap();
         if let Some(client) = &inner.active {

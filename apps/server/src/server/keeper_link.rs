@@ -1,7 +1,7 @@
 use std::{
     fs, io,
     process::{Command, Stdio},
-    sync::Arc,
+    sync::{Arc, atomic::Ordering},
     time::Duration,
 };
 
@@ -12,7 +12,13 @@ use crate::{frame, utils::paths::data_directory};
 
 pub(super) async fn link(app: Arc<App>, mut frames: mpsc::UnboundedReceiver<Vec<u8>>) {
     loop {
-        let stream = connect_keeper().await;
+        while app.stopping.load(Ordering::SeqCst) {
+            app.keeper_gone.notify_waiters();
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        let Some(stream) = connect_keeper(&app).await else {
+            continue;
+        };
         let (mut reader, mut writer) = stream.into_split();
         let reading = async {
             loop {
@@ -40,10 +46,13 @@ pub(super) async fn link(app: Arc<App>, mut frames: mpsc::UnboundedReceiver<Vec<
     }
 }
 
-async fn connect_keeper() -> TcpStream {
+async fn connect_keeper(app: &App) -> Option<TcpStream> {
     loop {
+        if app.stopping.load(Ordering::SeqCst) {
+            return None;
+        }
         if let Ok(stream) = TcpStream::connect(("127.0.0.1", crate::KEEPER_PORT)).await {
-            return stream;
+            return Some(stream);
         }
         if let Err(error) = start_keeper() {
             eprintln!("could not start keeper: {error}");
@@ -51,7 +60,7 @@ async fn connect_keeper() -> TcpStream {
         for _ in 0..50 {
             tokio::time::sleep(Duration::from_millis(100)).await;
             if let Ok(stream) = TcpStream::connect(("127.0.0.1", crate::KEEPER_PORT)).await {
-                return stream;
+                return Some(stream);
             }
         }
         eprintln!("keeper did not start in time, trying again");

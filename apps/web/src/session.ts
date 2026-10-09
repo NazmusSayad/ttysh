@@ -41,7 +41,7 @@ type Request =
   | { type: 'resize'; id: number; cols: number; rows: number }
 
 type Message =
-  | { type: 'active'; layout: Layout }
+  | { type: 'active'; layout: Layout; instance: string }
   | { type: 'layout'; layout: Layout }
   | { type: 'paused' }
   | { type: 'config'; config: Config }
@@ -66,6 +66,7 @@ const listeners = new Set<() => void>()
 let state: State
 let socket: WebSocket
 let hiddenAt = 0
+let instance: string | null = null
 
 export function start(config: Config, platform: Platform) {
   state = {
@@ -192,6 +193,11 @@ function handle(message: Message) {
     return
   }
   if (message.type === 'active') {
+    if (instance !== null && message.instance !== instance) {
+      location.reload()
+      return
+    }
+    instance = message.instance
     for (const session of sessions.values()) session.terminal.reset()
   }
   sync(message.layout)

@@ -2,6 +2,7 @@ mod config;
 mod frame;
 mod keeper;
 mod server;
+mod supervisor;
 mod utils;
 
 use clap::{Parser, Subcommand};
@@ -22,13 +23,16 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     #[command(hide = true)]
+    Server,
+    #[command(hide = true)]
     Keeper,
 }
 
 fn main() {
     let cli = Cli::parse();
     match cli.command {
-        None => server::run(cli.host, cli.port),
+        None => supervisor::run(&cli.host, cli.port),
+        Some(Command::Server) => server::run(cli.host, cli.port),
         Some(Command::Keeper) => keeper::run(),
     }
 }
