@@ -160,7 +160,12 @@ export function App() {
         </button>
       </aside>
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="bg-card flex h-8 flex-none border-b select-none">
+        <header
+          className={cn(
+            'flex h-8 flex-none border-b select-none',
+            group && group.tabs.length === 1 ? 'bg-background' : 'bg-card'
+          )}
+        >
           <button
             className="text-muted-foreground hover:text-foreground grid w-9 flex-none place-items-center md:hidden"
             aria-label="Groups"
@@ -225,7 +230,10 @@ export function App() {
                 ))}
               </div>
               <button
-                className="text-muted-foreground hover:text-foreground grid w-8 flex-none place-items-center border-l transition-colors"
+                className={cn(
+                  'grid w-8 flex-none place-items-center text-muted-foreground transition-colors hover:text-foreground',
+                  group.tabs.length > 1 && 'border-l'
+                )}
                 aria-label="New tab"
                 title="New tab"
                 onClick={() => send({ type: 'createTab', groupId: group.id })}
