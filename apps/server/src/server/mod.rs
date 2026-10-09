@@ -5,6 +5,7 @@ mod directories;
 mod keeper_link;
 mod layout;
 mod logos;
+mod paste;
 mod restart;
 mod shells;
 
@@ -15,7 +16,7 @@ use std::{
 
 use axum::{
     Json, Router,
-    extract::{State, WebSocketUpgrade},
+    extract::{DefaultBodyLimit, State, WebSocketUpgrade},
     http::StatusCode,
     response::Response,
     routing::{get, post, put},
@@ -65,6 +66,10 @@ async fn serve(host: String, port: u16, debug: bool) {
             put(logos::upload).delete(logos::remove),
         )
         .route("/api/logos/{file}", get(logos::serve))
+        .route(
+            "/api/paste",
+            post(paste::upload).layer(DefaultBodyLimit::max(50 * 1024 * 1024)),
+        )
         .route("/api/instance", get(restart::instance))
         .route("/api/restart/server", post(restart::server))
         .route("/api/restart/everything", post(restart::everything));
