@@ -45,7 +45,6 @@ pub(super) async fn list(
             name: entry.file_name().to_string_lossy().into_owned(),
             path: entry.path().to_string_lossy().into_owned(),
         })
-        .filter(|directory| !directory.name.starts_with('.'))
         .collect();
     directories.sort_by_key(|directory| directory.name.to_lowercase());
     Ok(Json(Listing {

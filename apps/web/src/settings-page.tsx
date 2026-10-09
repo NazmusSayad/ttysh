@@ -33,6 +33,7 @@ import {
   type Shell,
 } from '@/config'
 import { cn } from '@/lib/utils'
+import { ShellInput } from '@/shell-input'
 
 type Colors = Config['colors']
 
@@ -161,13 +162,11 @@ export function SettingsPage(props: { config: Config; platform: Platform }) {
             </Select>
           </Row>
           <Row label="Command">
-            <TextInput
+            <ShellInput
               key={`${platform}-command`}
-              placeholder="System default"
-              value={shell.command ?? ''}
-              onCommit={(command) =>
-                updateShell({ command: command === '' ? null : command })
-              }
+              platform={platform}
+              value={shell.command}
+              onCommit={(command) => updateShell({ command })}
             />
           </Row>
           <Row label="Working directory">
