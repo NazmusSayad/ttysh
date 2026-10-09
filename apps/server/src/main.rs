@@ -1,7 +1,9 @@
 mod config;
 mod frame;
 mod keeper;
+mod lock;
 mod server;
+mod stop;
 mod supervisor;
 mod utils;
 
@@ -26,6 +28,8 @@ enum Command {
     Server,
     #[command(hide = true)]
     Keeper,
+    #[command(about = "Stop ttysh and end all its terminals")]
+    Stop,
 }
 
 fn main() {
@@ -34,5 +38,6 @@ fn main() {
         None => supervisor::run(&cli.host, cli.port),
         Some(Command::Server) => server::run(cli.host, cli.port),
         Some(Command::Keeper) => keeper::run(),
+        Some(Command::Stop) => stop::run(),
     }
 }

@@ -26,6 +26,12 @@ ttysh
 
 Then open http://localhost:47831.
 
+Only one ttysh runs at a time. Your terminals keep running after you quit ttysh; to stop it and end them all, run:
+
+```sh
+ttysh stop
+```
+
 | Option          | Default     | Description          |
 | --------------- | ----------- | -------------------- |
 | `--host <HOST>` | `127.0.0.1` | Address to listen on |
