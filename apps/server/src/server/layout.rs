@@ -17,6 +17,7 @@ pub(super) struct Layout {
 pub(super) struct Group {
     pub(super) id: u64,
     pub(super) name: String,
+    pub(super) logo: Option<String>,
     pub(super) tabs: Vec<Tab>,
     pub(super) active_tab: Option<u64>,
 }

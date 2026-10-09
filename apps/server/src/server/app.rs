@@ -7,13 +7,19 @@ use std::{
     },
 };
 
-use axum::extract::ws::{Message, WebSocket};
+use axum::{
+    extract::ws::{Message, WebSocket},
+    http::StatusCode,
+};
 use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
 use serde_json::json;
 use tokio::sync::mpsc;
 
-use super::layout::{self, Group, Layout, Tab, remove_tab, tab_ids, unused_name};
+use super::{
+    layout::{self, Group, Layout, Tab, remove_tab, tab_ids, unused_name},
+    logos,
+};
 use crate::{
     config::{self, Launch},
     frame::{self, Frame},
@@ -161,6 +167,7 @@ impl App {
                 layout.groups.push(Group {
                     id,
                     name: unused_name("Group", layout.groups.iter().map(|group| &group.name)),
+                    logo: None,
                     tabs: Vec::new(),
                     active_tab: None,
                 });
@@ -339,6 +346,9 @@ impl App {
     fn close(&self, layout: &mut Layout, id: u64) {
         if let Some(index) = layout.groups.iter().position(|group| group.id == id) {
             let group = layout.groups.remove(index);
+            if let Some(logo) = &group.logo {
+                logos::delete(logo);
+            }
             for tab in &group.tabs {
                 self.to_keeper(frame::encode(frame::KILL, tab.id, &[]));
             }
@@ -354,6 +364,36 @@ impl App {
         if remove_tab(layout, id) {
             self.to_keeper(frame::encode(frame::KILL, id, &[]));
         }
+    }
+
+    pub(super) fn replace_logo(
+        &self,
+        group_id: u64,
+        logo: Option<String>,
+    ) -> Result<Option<String>, StatusCode> {
+        let mut guard = self.inner.lock().unwrap();
+        let inner = &mut *guard;
+        let Some(group) = inner
+            .layout
+            .groups
+            .iter_mut()
+            .find(|group| group.id == group_id)
+        else {
+            return Err(StatusCode::NOT_FOUND);
+        };
+        let previous = std::mem::replace(&mut group.logo, logo);
+        self.save(&inner.layout);
+        publish(inner);
+        Ok(previous)
+    }
+
+    pub(super) fn has_logo(&self, file: &str) -> bool {
+        let inner = self.inner.lock().unwrap();
+        inner
+            .layout
+            .groups
+            .iter()
+            .any(|group| group.logo.as_deref() == Some(file))
     }
 
     fn save(&self, layout: &Layout) {

@@ -3,9 +3,16 @@ import { LigaturesAddon } from '@xterm/addon-ligatures'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal } from '@xterm/xterm'
 import { applyStyle, type Config, terminalOptions } from './config'
+import { updateFavicon } from './favicon'
 
 type Tab = { id: number; customName: string | null }
-type Group = { id: number; name: string; tabs: Tab[]; activeTab: number | null }
+type Group = {
+  id: number
+  name: string
+  logo: string | null
+  tabs: Tab[]
+  activeTab: number | null
+}
 type Layout = { groups: Group[]; activeGroup: number | null; nextId: number }
 type State = {
   status: 'connecting' | 'active' | 'paused'
@@ -89,11 +96,28 @@ function setState(next: Partial<State>) {
   )
   const tab = group?.tabs.find((item) => item.id === group.activeTab)
   document.title = tab ? tabTitle(tab) : 'ttysh'
+  updateFavicon(group ? group.logo : null, state.config.colors)
   for (const listener of listeners) listener()
 }
 
 export function tabTitle(tab: Tab) {
   return (tab.customName ?? state.titles[tab.id]) || 'Terminal'
+}
+
+export async function uploadLogo(groupId: number, file: File) {
+  const response = await fetch(`/api/groups/${groupId}/logo`, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type },
+    body: file,
+  })
+  if (!response.ok) throw new Error(await response.text())
+}
+
+export async function removeLogo(groupId: number) {
+  const response = await fetch(`/api/groups/${groupId}/logo`, {
+    method: 'DELETE',
+  })
+  if (!response.ok) throw new Error(await response.text())
 }
 
 export function send(request: Request) {

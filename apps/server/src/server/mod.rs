@@ -2,6 +2,7 @@ mod app;
 mod assets;
 mod keeper_link;
 mod layout;
+mod logos;
 
 use std::sync::Arc;
 
@@ -9,7 +10,7 @@ use axum::{
     Router,
     extract::{State, WebSocketUpgrade},
     response::Response,
-    routing::get,
+    routing::{get, put},
 };
 use tokio::sync::mpsc;
 
@@ -30,6 +31,11 @@ async fn serve(host: String, port: u16) {
     let router = Router::new()
         .route("/ws", get(socket))
         .route("/api/config", get(config::handler).put(config::save))
+        .route(
+            "/api/groups/{id}/logo",
+            put(logos::upload).delete(logos::remove),
+        )
+        .route("/api/logos/{file}", get(logos::serve))
         .fallback(assets::asset)
         .with_state(app);
     let listener = match tokio::net::TcpListener::bind((host.as_str(), port)).await {

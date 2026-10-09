@@ -2,6 +2,8 @@ import {
   Add01Icon,
   Cancel01Icon,
   Delete02Icon,
+  ImageAdd01Icon,
+  ImageRemove01Icon,
   Menu01Icon,
   PencilEdit02Icon,
   Settings01Icon,
@@ -44,11 +46,13 @@ import {
   clientId,
   getState,
   mount,
+  removeLogo,
   send,
   sendInput,
   subscribe,
   tabTitle,
   toggleCtrl,
+  uploadLogo,
 } from '@/session'
 import { SettingsDialog } from '@/settings-dialog'
 
@@ -73,6 +77,13 @@ export function App() {
   const [drawer, setDrawer] = useState(false)
   const [settings, setSettings] = useState(false)
   const [prompt, setPrompt] = useState<Prompt | null>(null)
+  const logoInput = useRef<HTMLInputElement>(null)
+  const logoGroup = useRef<number | null>(null)
+  const [logoError, setLogoError] = useState<string | null>(null)
+
+  function showError(error: unknown) {
+    setLogoError(error instanceof Error ? error.message : String(error))
+  }
   const layout = state.layout
   const group = layout.groups.find((item) => item.id === layout.activeGroup)
   const tabId = group?.activeTab ?? null
@@ -95,6 +106,15 @@ export function App() {
           <ItemMenu
             key={item.id}
             closeLabel="Close group"
+            onChangeLogo={() => {
+              logoGroup.current = item.id
+              logoInput.current?.click()
+            }}
+            onRemoveLogo={
+              item.logo === null
+                ? undefined
+                : () => void removeLogo(item.id).catch(showError)
+            }
             onRename={() =>
               setPrompt({
                 type: 'rename',
@@ -131,7 +151,16 @@ export function App() {
                 })
               }
             >
-              <span className="hidden md:inline">{initials(item.name)}</span>
+              {item.logo !== null && (
+                <img
+                  src={`/api/logos/${item.logo}`}
+                  alt=""
+                  className="mr-2 size-4 flex-none rounded-[3px] object-cover md:mr-0 md:size-5 md:rounded-[5px]"
+                />
+              )}
+              {item.logo === null && (
+                <span className="hidden md:inline">{initials(item.name)}</span>
+              )}
               <span className="truncate md:hidden">{item.name}</span>
             </button>
           </ItemMenu>
@@ -147,6 +176,19 @@ export function App() {
           <HugeiconsIcon icon={Add01Icon} className="size-4" />
           <span className="md:hidden">New group</span>
         </button>
+        <input
+          ref={logoInput}
+          type="file"
+          accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml,image/x-icon,image/vnd.microsoft.icon"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            const groupId = logoGroup.current
+            event.target.value = ''
+            if (file === undefined || groupId === null) return
+            void uploadLogo(groupId, file).catch(showError)
+          }}
+        />
         <button
           className="text-muted-foreground hover:bg-accent hover:text-foreground mt-auto flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-8 md:justify-center md:px-0"
           title="Settings"
@@ -323,6 +365,22 @@ export function App() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AlertDialog
+        open={logoError !== null}
+        onOpenChange={(open) => {
+          if (!open) setLogoError(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Logo not updated</AlertDialogTitle>
+            <AlertDialogDescription>{logoError}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>OK</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {settings && <SettingsDialog onDone={() => setSettings(false)} />}
       {state.status !== 'active' && (
         <div className="bg-background/85 fixed inset-0 z-50 grid place-items-center backdrop-blur-xs">
@@ -407,6 +465,8 @@ function ItemMenu(props: {
   closeLabel: string
   onRename: () => void
   onClose: () => void
+  onChangeLogo?: () => void
+  onRemoveLogo?: () => void
   children: ReactNode
 }) {
   return (
@@ -417,6 +477,18 @@ function ItemMenu(props: {
           <HugeiconsIcon icon={PencilEdit02Icon} />
           Rename
         </ContextMenuItem>
+        {props.onChangeLogo && (
+          <ContextMenuItem onSelect={props.onChangeLogo}>
+            <HugeiconsIcon icon={ImageAdd01Icon} />
+            Change logo
+          </ContextMenuItem>
+        )}
+        {props.onRemoveLogo && (
+          <ContextMenuItem onSelect={props.onRemoveLogo}>
+            <HugeiconsIcon icon={ImageRemove01Icon} />
+            Remove logo
+          </ContextMenuItem>
+        )}
         <ContextMenuItem variant="destructive" onSelect={props.onClose}>
           <HugeiconsIcon icon={Delete02Icon} />
           {props.closeLabel}
