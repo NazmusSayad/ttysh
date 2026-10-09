@@ -13,7 +13,7 @@ use axum::{
 };
 use tokio::sync::mpsc;
 
-use crate::config;
+use crate::{config, utils::paths::data_directory};
 use app::App;
 
 pub fn run() {
@@ -25,10 +25,7 @@ pub fn run() {
 async fn serve() {
     config::create().expect("could not create the config file");
     let (keeper, frames) = mpsc::unbounded_channel();
-    let app = Arc::new(App::new(
-        crate::data_directory().join("layout.json"),
-        keeper,
-    ));
+    let app = Arc::new(App::new(data_directory().join("layout.json"), keeper));
     tokio::spawn(keeper_link::link(app.clone(), frames));
     let router = Router::new()
         .route("/ws", get(socket))

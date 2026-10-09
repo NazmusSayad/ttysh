@@ -2,6 +2,8 @@ use std::{collections::HashSet, fs, io, path::Path};
 
 use serde::{Deserialize, Serialize};
 
+use crate::utils::fs::write_atomic;
+
 #[derive(Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct Layout {
@@ -34,10 +36,7 @@ pub(super) fn load(path: &Path) -> Layout {
 }
 
 pub(super) fn write_layout(path: &Path, layout: &Layout) -> io::Result<()> {
-    fs::create_dir_all(crate::data_directory())?;
-    let temporary = path.with_extension("json.tmp");
-    fs::write(&temporary, serde_json::to_vec_pretty(layout)?)?;
-    fs::rename(&temporary, path)
+    write_atomic(path, &serde_json::to_vec_pretty(layout)?)
 }
 
 pub(super) fn remove_tab(layout: &mut Layout, id: u64) -> bool {

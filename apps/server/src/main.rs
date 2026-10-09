@@ -2,17 +2,10 @@ mod config;
 mod frame;
 mod keeper;
 mod server;
-
-use std::path::PathBuf;
+mod utils;
 
 const SERVER_PORT: u16 = 47831;
 const KEEPER_PORT: u16 = 47832;
-
-fn data_directory() -> PathBuf {
-    dirs::home_dir()
-        .expect("home directory not found")
-        .join(".ttysh")
-}
 
 fn main() {
     let command = std::env::args().nth(1);

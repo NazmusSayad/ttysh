@@ -7,6 +7,11 @@ use std::{
 use axum::{Json, http::StatusCode};
 use serde::{Deserialize, Serialize};
 
+use crate::utils::{
+    fs::write_atomic,
+    paths::{data_directory, expand_home},
+};
+
 const DEFAULT: &str = include_str!("default-config.json");
 
 #[derive(Serialize, Deserialize)]
@@ -80,11 +85,11 @@ pub struct Launch {
 }
 
 fn path() -> PathBuf {
-    crate::data_directory().join("config.json")
+    data_directory().join("config.json")
 }
 
 pub fn create() -> io::Result<()> {
-    fs::create_dir_all(crate::data_directory())?;
+    fs::create_dir_all(data_directory())?;
     match fs::OpenOptions::new()
         .write(true)
         .create_new(true)
@@ -137,28 +142,17 @@ pub async fn handler() -> Result<Json<Config>, (StatusCode, String)> {
 
 pub async fn save(Json(config): Json<Config>) -> Result<Json<Config>, (StatusCode, String)> {
     validate(&config).map_err(|error| (StatusCode::BAD_REQUEST, error))?;
-    let path = path();
-    let temporary = path.with_extension("json.tmp");
     let mut text = serde_json::to_string_pretty(&config).expect("config serializes");
     text.push('\n');
-    fs::write(&temporary, text)
-        .and_then(|()| fs::rename(&temporary, &path))
+    write_atomic(&path(), text.as_bytes())
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
     Ok(Json(config))
 }
 
 pub fn launch() -> Result<Launch, String> {
     let shell = read()?.shell;
-    let home = dirs::home_dir().expect("home directory not found");
-    let cwd = match shell.cwd.as_str() {
-        "~" => home,
-        path => match path.strip_prefix("~/") {
-            Some(rest) => home.join(rest),
-            None => PathBuf::from(path),
-        },
-    };
     Ok(Launch {
         command: shell.command,
-        cwd,
+        cwd: expand_home(&shell.cwd),
     })
 }

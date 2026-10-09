@@ -8,7 +8,7 @@ use std::{
 use tokio::{io::AsyncWriteExt, net::TcpStream, sync::mpsc};
 
 use super::app::App;
-use crate::frame;
+use crate::{frame, utils::paths::data_directory};
 
 pub(super) async fn link(app: Arc<App>, mut frames: mpsc::UnboundedReceiver<Vec<u8>>) {
     loop {
@@ -59,7 +59,7 @@ async fn connect_keeper() -> TcpStream {
 }
 
 fn start_keeper() -> io::Result<()> {
-    let directory = crate::data_directory();
+    let directory = data_directory();
     fs::create_dir_all(&directory)?;
     let log = fs::OpenOptions::new()
         .create(true)
