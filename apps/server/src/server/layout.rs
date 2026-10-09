@@ -66,10 +66,10 @@ pub(super) fn tab_ids(layout: &Layout) -> Vec<u64> {
         .collect()
 }
 
-pub(super) fn unused_name<'a>(prefix: &str, names: impl Iterator<Item = &'a String>) -> String {
+pub(super) fn unused_name<'a>(names: impl Iterator<Item = &'a String>) -> String {
     let taken: HashSet<&String> = names.collect();
     (1..)
-        .map(|number| format!("{prefix} {number}"))
+        .map(|number: u64| number.to_string())
         .find(|name| !taken.contains(name))
         .expect("a free name exists")
 }

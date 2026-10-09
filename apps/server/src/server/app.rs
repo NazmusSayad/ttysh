@@ -166,7 +166,7 @@ impl App {
                 let id = layout.next_id;
                 layout.groups.push(Group {
                     id,
-                    name: unused_name("Group", layout.groups.iter().map(|group| &group.name)),
+                    name: unused_name(layout.groups.iter().map(|group| &group.name)),
                     logo: None,
                     tabs: Vec::new(),
                     active_tab: None,

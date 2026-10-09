@@ -43,7 +43,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import {
-  clientId,
   getState,
   mount,
   removeLogo,
@@ -54,7 +53,8 @@ import {
   toggleCtrl,
   uploadLogo,
 } from '@/session'
-import { SettingsDialog } from '@/settings-dialog'
+import { SettingsPage } from '@/settings-page'
+import { StatusOverlay } from '@/status-overlay'
 
 type Prompt = {
   type: 'rename' | 'close'
@@ -98,7 +98,7 @@ export function App() {
       )}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-20 flex w-60 -translate-x-full flex-col gap-0.5 overflow-y-auto border-r bg-card p-2 transition-transform select-none motion-reduce:transition-none md:static md:w-12 md:translate-x-0 md:items-center md:px-0',
+          'fixed inset-y-0 left-0 z-20 flex w-60 -translate-x-full flex-col gap-0.5 overflow-y-auto border-r bg-card p-2 transition-transform select-none motion-reduce:transition-none md:static md:w-13 md:translate-x-0 md:items-center md:px-0',
           drawer && 'translate-x-0'
         )}
       >
@@ -134,12 +134,15 @@ export function App() {
           >
             <button
               className={cn(
-                'flex h-8 flex-none items-center rounded-md px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:size-8 md:justify-center md:px-0 md:text-[11px] md:font-medium',
-                item.id === layout.activeGroup && 'bg-accent text-foreground'
+                'flex h-8 flex-none items-center rounded-md px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:size-9 md:justify-center md:px-0 md:text-xs md:font-medium',
+                item.id === layout.activeGroup &&
+                  !settings &&
+                  'bg-accent text-foreground'
               )}
               title={item.name}
               onClick={() => {
                 send({ type: 'select', groupId: item.id, tabId: null })
+                setSettings(false)
                 setDrawer(false)
               }}
               onDoubleClick={() =>
@@ -155,7 +158,7 @@ export function App() {
                 <img
                   src={`/api/logos/${item.logo}`}
                   alt=""
-                  className="mr-2 size-4 flex-none rounded-[3px] object-cover md:mr-0 md:size-5 md:rounded-[5px]"
+                  className="mr-2 size-4 flex-none rounded-[3px] object-cover md:mr-0 md:size-5.5 md:rounded-[5px]"
                 />
               )}
               {item.logo === null && (
@@ -166,10 +169,11 @@ export function App() {
           </ItemMenu>
         ))}
         <button
-          className="text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-8 md:justify-center md:px-0"
+          className="text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-9 md:justify-center md:px-0"
           title="New group"
           onClick={() => {
             send({ type: 'createGroup' })
+            setSettings(false)
             setDrawer(false)
           }}
         >
@@ -190,7 +194,10 @@ export function App() {
           }}
         />
         <button
-          className="text-muted-foreground hover:bg-accent hover:text-foreground mt-auto flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-8 md:justify-center md:px-0"
+          className={cn(
+            'mt-auto flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:size-9 md:justify-center md:px-0',
+            settings && 'bg-accent text-foreground'
+          )}
           title="Settings"
           onClick={() => {
             setSettings(true)
@@ -201,50 +208,35 @@ export function App() {
           <span className="md:hidden">Settings</span>
         </button>
       </aside>
-      <main className="flex min-w-0 flex-1 flex-col">
-        <header
-          className={cn(
-            'flex h-8 flex-none border-b select-none',
-            group && group.tabs.length === 1 ? 'bg-background' : 'bg-card'
-          )}
-        >
-          <button
-            className="text-muted-foreground hover:text-foreground grid w-9 flex-none place-items-center md:hidden"
-            aria-label="Groups"
-            onClick={() => setDrawer(!drawer)}
+      {settings && (
+        <SettingsPage
+          onMenu={() => setDrawer(!drawer)}
+          onClose={() => setSettings(false)}
+        />
+      )}
+      {!settings && (
+        <main className="flex min-w-0 flex-1 flex-col">
+          <header
+            className={cn(
+              'flex h-8 flex-none border-b select-none',
+              group && group.tabs.length === 1 ? 'bg-background' : 'bg-card'
+            )}
           >
-            <HugeiconsIcon icon={Menu01Icon} className="size-4" />
-          </button>
-          {group && (
-            <>
-              <div className="flex min-w-0 flex-1 [scrollbar-width:none] overflow-x-auto">
-                {group.tabs.map((tab) => (
-                  <ItemMenu
-                    key={tab.id}
-                    closeLabel="Close tab"
-                    onRename={() =>
-                      setPrompt({
-                        type: 'rename',
-                        target: 'tab',
-                        id: tab.id,
-                        name: tab.customName ?? '',
-                      })
-                    }
-                    onClose={() => send({ type: 'close', id: tab.id })}
-                  >
-                    <div
-                      className={cn(
-                        'group/tab relative flex min-w-28 flex-1 items-center justify-center border-r px-7 text-xs text-muted-foreground transition-colors last:border-r-0 hover:text-foreground',
-                        tab.id === tabId && 'bg-background text-foreground'
-                      )}
-                      onClick={() =>
-                        send({
-                          type: 'select',
-                          groupId: group.id,
-                          tabId: tab.id,
-                        })
-                      }
-                      onDoubleClick={() =>
+            <button
+              className="text-muted-foreground hover:text-foreground grid w-9 flex-none place-items-center md:hidden"
+              aria-label="Groups"
+              onClick={() => setDrawer(!drawer)}
+            >
+              <HugeiconsIcon icon={Menu01Icon} className="size-4" />
+            </button>
+            {group && (
+              <>
+                <div className="flex min-w-0 flex-1 [scrollbar-width:none] overflow-x-auto">
+                  {group.tabs.map((tab) => (
+                    <ItemMenu
+                      key={tab.id}
+                      closeLabel="Close tab"
+                      onRename={() =>
                         setPrompt({
                           type: 'rename',
                           target: 'tab',
@@ -252,86 +244,112 @@ export function App() {
                           name: tab.customName ?? '',
                         })
                       }
+                      onClose={() => send({ type: 'close', id: tab.id })}
                     >
-                      <span className="truncate">{tabTitle(tab)}</span>
-                      <button
+                      <div
                         className={cn(
-                          'absolute left-1.5 grid size-4.5 place-items-center rounded text-muted-foreground opacity-0 transition-opacity group-hover/tab:opacity-100 hover:bg-accent hover:text-foreground',
-                          tab.id === tabId && 'pointer-coarse:opacity-100'
+                          'group/tab relative flex min-w-28 flex-1 items-center justify-center border-r px-7 text-xs text-muted-foreground transition-colors last:border-r-0 hover:text-foreground',
+                          tab.id === tabId && 'bg-background text-foreground'
                         )}
-                        aria-label="Close tab"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          send({ type: 'close', id: tab.id })
-                        }}
+                        onClick={() =>
+                          send({
+                            type: 'select',
+                            groupId: group.id,
+                            tabId: tab.id,
+                          })
+                        }
+                        onDoubleClick={() =>
+                          setPrompt({
+                            type: 'rename',
+                            target: 'tab',
+                            id: tab.id,
+                            name: tab.customName ?? '',
+                          })
+                        }
                       >
-                        <HugeiconsIcon icon={Cancel01Icon} className="size-3" />
-                      </button>
-                    </div>
-                  </ItemMenu>
-                ))}
+                        <span className="truncate">{tabTitle(tab)}</span>
+                        <button
+                          className={cn(
+                            'absolute left-1.5 grid size-4.5 place-items-center rounded text-muted-foreground opacity-0 transition-opacity group-hover/tab:opacity-100 hover:bg-accent hover:text-foreground',
+                            tab.id === tabId && 'pointer-coarse:opacity-100'
+                          )}
+                          aria-label="Close tab"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            send({ type: 'close', id: tab.id })
+                          }}
+                        >
+                          <HugeiconsIcon
+                            icon={Cancel01Icon}
+                            className="size-3"
+                          />
+                        </button>
+                      </div>
+                    </ItemMenu>
+                  ))}
+                </div>
+                <button
+                  className={cn(
+                    'grid w-8 flex-none place-items-center text-muted-foreground transition-colors hover:text-foreground',
+                    group.tabs.length > 1 && 'border-l'
+                  )}
+                  aria-label="New tab"
+                  title="New tab"
+                  onClick={() => send({ type: 'createTab', groupId: group.id })}
+                >
+                  <HugeiconsIcon icon={Add01Icon} className="size-4" />
+                </button>
+              </>
+            )}
+          </header>
+          <div className="relative min-h-0 flex-1">
+            {tabId !== null && <TerminalPane key={tabId} id={tabId} />}
+            {state.status === 'active' && !group && (
+              <div className="absolute inset-0 grid place-items-center">
+                <Button
+                  variant="outline"
+                  onClick={() => send({ type: 'createGroup' })}
+                >
+                  New group
+                </Button>
               </div>
-              <button
-                className={cn(
-                  'grid w-8 flex-none place-items-center text-muted-foreground transition-colors hover:text-foreground',
-                  group.tabs.length > 1 && 'border-l'
-                )}
-                aria-label="New tab"
-                title="New tab"
-                onClick={() => send({ type: 'createTab', groupId: group.id })}
-              >
-                <HugeiconsIcon icon={Add01Icon} className="size-4" />
-              </button>
-            </>
-          )}
-        </header>
-        <div className="relative min-h-0 flex-1">
-          {tabId !== null && <TerminalPane key={tabId} id={tabId} />}
-          {state.status === 'active' && !group && (
-            <div className="absolute inset-0 grid place-items-center">
+            )}
+            {group && group.tabs.length === 0 && (
+              <div className="absolute inset-0 grid place-items-center">
+                <Button
+                  variant="outline"
+                  onClick={() => send({ type: 'createTab', groupId: group.id })}
+                >
+                  New terminal
+                </Button>
+              </div>
+            )}
+          </div>
+          {tabId !== null && (
+            <div className="bg-card hidden flex-none gap-1.5 overflow-x-auto border-t p-1.5 pointer-coarse:flex">
+              {keys.map((key) => (
+                <Button
+                  key={key.label}
+                  variant="secondary"
+                  className="min-w-11"
+                  onPointerDown={(event) => event.preventDefault()}
+                  onClick={() => sendInput(tabId, key.sequence)}
+                >
+                  {key.label}
+                </Button>
+              ))}
               <Button
-                variant="outline"
-                onClick={() => send({ type: 'createGroup' })}
-              >
-                New group
-              </Button>
-            </div>
-          )}
-          {group && group.tabs.length === 0 && (
-            <div className="absolute inset-0 grid place-items-center">
-              <Button
-                variant="outline"
-                onClick={() => send({ type: 'createTab', groupId: group.id })}
-              >
-                New terminal
-              </Button>
-            </div>
-          )}
-        </div>
-        {tabId !== null && (
-          <div className="bg-card hidden flex-none gap-1.5 overflow-x-auto border-t p-1.5 pointer-coarse:flex">
-            {keys.map((key) => (
-              <Button
-                key={key.label}
-                variant="secondary"
+                variant={state.ctrl ? 'default' : 'secondary'}
                 className="min-w-11"
                 onPointerDown={(event) => event.preventDefault()}
-                onClick={() => sendInput(tabId, key.sequence)}
+                onClick={toggleCtrl}
               >
-                {key.label}
+                Ctrl
               </Button>
-            ))}
-            <Button
-              variant={state.ctrl ? 'default' : 'secondary'}
-              className="min-w-11"
-              onPointerDown={(event) => event.preventDefault()}
-              onClick={toggleCtrl}
-            >
-              Ctrl
-            </Button>
-          </div>
-        )}
-      </main>
+            </div>
+          )}
+        </main>
+      )}
       {prompt?.type === 'rename' && (
         <RenameDialog
           key={prompt.id}
@@ -381,22 +399,7 @@ export function App() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      {settings && <SettingsDialog onDone={() => setSettings(false)} />}
-      {state.status !== 'active' && (
-        <div className="bg-background/85 fixed inset-0 z-50 grid place-items-center backdrop-blur-xs">
-          {state.status === 'paused' && (
-            <div className="grid justify-items-center gap-3.5">
-              <h2 className="font-semibold">Session paused</h2>
-              <Button onClick={() => send({ type: 'resume', clientId })}>
-                Resume here
-              </Button>
-            </div>
-          )}
-          {state.status === 'connecting' && (
-            <p className="text-muted-foreground">Connecting…</p>
-          )}
-        </div>
-      )}
+      {state.status !== 'active' && <StatusOverlay status={state.status} />}
     </div>
   )
 }
