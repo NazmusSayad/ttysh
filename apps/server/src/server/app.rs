@@ -317,7 +317,7 @@ impl App {
     }
 
     fn create_tab(&self, layout: &mut Layout, group_id: u64) {
-        let launch = match config::launch() {
+        let mut launch = match config::launch() {
             Ok(launch) => launch,
             Err(error) => {
                 eprintln!("could not load config, terminal not created: {error}");
@@ -329,6 +329,7 @@ impl App {
         let Some(group) = layout.groups.iter_mut().find(|group| group.id == group_id) else {
             return;
         };
+        launch.cwd_from = group.active_tab;
         group.tabs.push(Tab {
             id,
             custom_name: None,

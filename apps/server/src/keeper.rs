@@ -10,20 +10,26 @@ use std::{
 use portable_pty::{ChildKiller, CommandBuilder, MasterPty, PtySize, native_pty_system};
 use serde::Deserialize;
 
-use crate::frame::{self, Frame};
+use crate::{
+    frame::{self, Frame},
+    utils::process::current_directory,
+};
 
 const HISTORY_LIMIT: usize = 2 * 1024 * 1024;
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct Launch {
     command: Option<String>,
     cwd: PathBuf,
+    cwd_from: Option<u64>,
 }
 
 struct Session {
     history: VecDeque<u8>,
     master: Box<dyn MasterPty + Send>,
     killer: Box<dyn ChildKiller + Send + Sync>,
+    pid: Option<u32>,
     input: mpsc::Sender<Vec<u8>>,
 }
 
@@ -146,6 +152,15 @@ fn handle(keeper: &Shared, message: Frame) {
     }
 }
 
+fn terminal_directory(keeper: &Shared, id: u64) -> Result<PathBuf, String> {
+    let pid = match keeper.lock().unwrap().sessions.get(&id) {
+        Some(Session { pid: Some(pid), .. }) => *pid,
+        Some(Session { pid: None, .. }) => return Err("its process id is unknown".to_string()),
+        None => return Err("it does not exist".to_string()),
+    };
+    current_directory(pid).map_err(|error| error.to_string())
+}
+
 fn pty_size(size: (u16, u16)) -> PtySize {
     PtySize {
         cols: size.0,
@@ -173,7 +188,18 @@ fn open(keeper: &Shared, id: u64, size: PtySize, launch: &Launch) -> Result<(), 
         .openpty(size)
         .map_err(|error| error.to_string())?;
     let mut command = shell_command(launch);
-    command.cwd(&launch.cwd);
+    command.cwd(match launch.cwd_from {
+        Some(source) => match terminal_directory(keeper, source) {
+            Ok(path) => path,
+            Err(error) => {
+                eprintln!(
+                    "keeper: starting terminal {id} in the configured directory, could not read the directory of terminal {source}: {error}"
+                );
+                launch.cwd.clone()
+            }
+        },
+        None => launch.cwd.clone(),
+    });
     command.env("TERM", "xterm-256color");
     command.env("COLORTERM", "truecolor");
     let mut child = pair
@@ -196,6 +222,7 @@ fn open(keeper: &Shared, id: u64, size: PtySize, launch: &Launch) -> Result<(), 
             history: VecDeque::new(),
             master: pair.master,
             killer: child.clone_killer(),
+            pid: child.process_id(),
             input,
         },
     );

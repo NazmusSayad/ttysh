@@ -87,9 +87,11 @@ struct Colors {
 }
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Launch {
     command: Option<String>,
     cwd: PathBuf,
+    pub cwd_from: Option<u64>,
 }
 
 fn path() -> PathBuf {
@@ -157,6 +159,10 @@ pub async fn save(Json(config): Json<Config>) -> Result<Json<Config>, (StatusCod
     Ok(Json(config))
 }
 
+pub async fn defaults() -> Json<Config> {
+    Json(serde_json::from_str(DEFAULT).expect("default config is valid"))
+}
+
 pub async fn platform() -> Json<&'static str> {
     Json(std::env::consts::OS)
 }
@@ -172,5 +178,6 @@ pub fn launch() -> Result<Launch, String> {
     Ok(Launch {
         command: shell.command,
         cwd: expand_home(&shell.cwd),
+        cwd_from: None,
     })
 }

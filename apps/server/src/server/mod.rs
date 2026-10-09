@@ -31,6 +31,7 @@ async fn serve(host: String, port: u16) {
     let router = Router::new()
         .route("/ws", get(socket))
         .route("/api/config", get(config::handler).put(config::save))
+        .route("/api/config/defaults", get(config::defaults))
         .route("/api/platform", get(config::platform))
         .route(
             "/api/groups/{id}/logo",

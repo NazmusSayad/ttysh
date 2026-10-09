@@ -59,6 +59,12 @@ export async function loadConfig() {
   return (await response.json()) as Config
 }
 
+export async function loadDefaults() {
+  const response = await fetch('/api/config/defaults')
+  if (!response.ok) throw new Error(await response.text())
+  return (await response.json()) as Config
+}
+
 export const platforms: { value: Platform; label: string }[] = [
   { value: 'macos', label: 'macOS' },
   { value: 'linux', label: 'Linux' },

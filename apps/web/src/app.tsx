@@ -200,7 +200,7 @@ export function App() {
           )}
           title="Settings"
           onClick={() => {
-            setSettings(true)
+            setSettings(!settings)
             setDrawer(false)
           }}
         >
@@ -208,12 +208,7 @@ export function App() {
           <span className="md:hidden">Settings</span>
         </button>
       </aside>
-      {settings && (
-        <SettingsPage
-          onMenu={() => setDrawer(!drawer)}
-          onClose={() => setSettings(false)}
-        />
-      )}
+      {settings && <SettingsPage onMenu={() => setDrawer(!drawer)} />}
       {!settings && (
         <main className="flex min-w-0 flex-1 flex-col">
           <header

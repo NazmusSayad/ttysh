@@ -1,6 +1,16 @@
-import { Cancel01Icon, Menu01Icon } from '@hugeicons/core-free-icons'
+import { Menu01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { type ReactNode, useRef, useState } from 'react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -13,6 +23,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import {
   builtinFonts,
+  loadDefaults,
   type Config,
   paletteNames,
   type Platform,
@@ -39,10 +50,7 @@ const namedColors: {
 
 const hexColor = /^#[0-9a-f]{6}$/i
 
-export function SettingsPage(props: {
-  onMenu: () => void
-  onClose: () => void
-}) {
+export function SettingsPage(props: { onMenu: () => void }) {
   const [draft, setDraft] = useState(getState().config)
   const [customFont, setCustomFont] = useState(
     !builtinFonts.some((font) => font.family === draft.font.family)
@@ -51,6 +59,8 @@ export function SettingsPage(props: {
   const [platform, setPlatform] = useState(getState().platform)
   const shell = draft.shell[platform]
   const timer = useRef<number | undefined>(undefined)
+  const [confirming, setConfirming] = useState(false)
+  const [revision, setRevision] = useState(0)
 
   function commit(next: Config) {
     setDraft(next)
@@ -63,6 +73,19 @@ export function SettingsPage(props: {
           setError(failure instanceof Error ? failure.message : String(failure))
       )
     }, 300)
+  }
+
+  async function restoreDefaults() {
+    try {
+      const defaults = await loadDefaults()
+      setCustomFont(
+        !builtinFonts.some((font) => font.family === defaults.font.family)
+      )
+      setRevision(revision + 1)
+      commit(defaults)
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure))
+    }
   }
 
   function updateShell(value: Partial<Shell>) {
@@ -81,7 +104,7 @@ export function SettingsPage(props: {
 
   return (
     <div className="min-w-0 flex-1 overflow-auto px-6 pt-4 pb-7">
-      <div className="mx-auto w-full max-w-160 space-y-5">
+      <div key={revision} className="mx-auto w-full max-w-160 space-y-5">
         <div className="mb-6 flex h-9 min-w-0 items-center gap-3">
           <Button
             variant="ghost"
@@ -99,13 +122,11 @@ export function SettingsPage(props: {
             ~/.ttysh/config.json
           </p>
           <Button
-            variant="ghost"
-            size="icon"
-            className="-mr-2 ml-auto"
-            aria-label="Close settings"
-            onClick={props.onClose}
+            variant="outline"
+            className="ml-auto"
+            onClick={() => setConfirming(true)}
           >
-            <HugeiconsIcon icon={Cancel01Icon} />
+            Restore defaults
           </Button>
         </div>
         {error && (
@@ -296,6 +317,26 @@ export function SettingsPage(props: {
           ))}
         </Section>
       </div>
+      <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore defaults?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Every setting, including the shell for all platforms, goes back to
+              its default.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => void restoreDefaults()}
+            >
+              Restore defaults
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
