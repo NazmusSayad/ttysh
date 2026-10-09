@@ -1,5 +1,6 @@
 mod app;
 mod assets;
+mod debug;
 mod directories;
 mod keeper_link;
 mod layout;
@@ -21,30 +22,38 @@ use axum::{
 };
 use tokio::sync::mpsc;
 
-use crate::{config, utils::paths::data_directory};
+use crate::{config, logging, utils::paths::data_directory};
 use app::App;
 
-pub fn run(host: String, port: u16) {
+pub fn run(host: String, port: u16, debug: bool, session: &str) {
+    logging::init(&format!("session-{session}.log"), debug, true);
     std::thread::spawn(|| {
         let mut byte = [0];
         loop {
             match io::stdin().read(&mut byte) {
-                Ok(0) | Err(_) => std::process::exit(0),
+                Ok(0) | Err(_) => {
+                    tracing::info!("supervisor is gone, exiting");
+                    std::process::exit(0);
+                }
                 Ok(_) => {}
             }
         }
     });
     tokio::runtime::Runtime::new()
         .expect("could not start the async runtime")
-        .block_on(serve(host, port));
+        .block_on(serve(host, port, debug));
 }
 
-async fn serve(host: String, port: u16) {
+async fn serve(host: String, port: u16, debug: bool) {
     config::create().expect("could not create the config file");
     let (keeper, frames) = mpsc::unbounded_channel();
-    let app = Arc::new(App::new(data_directory().join("layout.json"), keeper));
+    let app = Arc::new(App::new(
+        data_directory().join("layout.json"),
+        keeper,
+        debug,
+    ));
     tokio::spawn(keeper_link::link(app.clone(), frames));
-    let router = Router::new()
+    let mut router = Router::new()
         .route("/ws", get(socket))
         .route("/api/config", get(config::handler).put(save_config))
         .route("/api/config/defaults", get(config::defaults))
@@ -58,17 +67,21 @@ async fn serve(host: String, port: u16) {
         .route("/api/logos/{file}", get(logos::serve))
         .route("/api/instance", get(restart::instance))
         .route("/api/restart/server", post(restart::server))
-        .route("/api/restart/everything", post(restart::everything))
-        .fallback(assets::asset)
-        .with_state(app);
+        .route("/api/restart/everything", post(restart::everything));
+    if debug {
+        router = router
+            .route("/api/debug/logs", get(debug::list))
+            .route("/api/debug/logs/{file}", get(debug::file));
+    }
+    let router = router.fallback(assets::asset).with_state(app);
     let listener = match tokio::net::TcpListener::bind((host.as_str(), port)).await {
         Ok(listener) => listener,
         Err(error) => {
-            eprintln!("could not listen on {host}:{port}: {error}");
+            tracing::error!("could not listen on {host}:{port}: {error}");
             std::process::exit(1);
         }
     };
-    println!(
+    tracing::info!(
         "listening on http://{}",
         listener.local_addr().expect("listener has an address")
     );

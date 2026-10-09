@@ -12,6 +12,7 @@ use serde::Deserialize;
 
 use crate::{
     frame::{self, Frame},
+    logging,
     utils::process::current_directory,
 };
 
@@ -49,10 +50,11 @@ impl Keeper {
 
 type Shared = Arc<Mutex<Keeper>>;
 
-pub fn run() {
+pub fn run(debug: bool) {
+    logging::init(&format!("keeper-{}.log", logging::run_id()), debug, false);
     let listener = TcpListener::bind(("127.0.0.1", crate::KEEPER_PORT))
         .expect("keeper could not bind its port");
-    eprintln!("keeper listening on 127.0.0.1:{}", crate::KEEPER_PORT);
+    tracing::info!("listening on 127.0.0.1:{}", crate::KEEPER_PORT);
     let keeper = Shared::default();
     for (number, stream) in listener.incoming().enumerate() {
         match stream {
@@ -60,7 +62,7 @@ pub fn run() {
                 let keeper = keeper.clone();
                 thread::spawn(move || serve(&keeper, stream, number as u64));
             }
-            Err(error) => eprintln!("keeper: connection failed: {error}"),
+            Err(error) => tracing::warn!("connection failed: {error}"),
         }
     }
 }
@@ -69,14 +71,18 @@ fn serve(keeper: &Shared, stream: TcpStream, number: u64) {
     let mut writer = match stream.try_clone() {
         Ok(writer) => writer,
         Err(error) => {
-            eprintln!("keeper: could not use connection: {error}");
+            tracing::error!(connection = number, "could not use connection: {error}");
             return;
         }
     };
     let (sender, receiver) = mpsc::channel::<Vec<u8>>();
     thread::spawn(move || {
         for bytes in receiver {
-            if writer.write_all(&bytes).is_err() {
+            if let Err(error) = writer.write_all(&bytes) {
+                tracing::warn!(
+                    connection = number,
+                    "could not write to the server: {error}"
+                );
                 break;
             }
         }
@@ -90,11 +96,19 @@ fn serve(keeper: &Shared, stream: TcpStream, number: u64) {
             .flat_map(|id| id.to_be_bytes())
             .collect();
         let _ = sender.send(frame::encode(frame::LIST, 0, &ids));
+        let terminals: Vec<&u64> = state.sessions.keys().collect();
+        tracing::info!(connection = number, ?terminals, "server connected");
         state.link = Some((number, sender));
     }
     let mut reader = stream;
-    while let Ok(message) = frame::read(&mut reader) {
-        handle(keeper, message);
+    loop {
+        match frame::read(&mut reader) {
+            Ok(message) => handle(keeper, message),
+            Err(error) => {
+                tracing::info!(connection = number, "server disconnected: {error}");
+                break;
+            }
+        }
     }
     let mut state = keeper.lock().unwrap();
     if state.link.as_ref().is_some_and(|link| link.0 == number) {
@@ -103,6 +117,15 @@ fn serve(keeper: &Shared, stream: TcpStream, number: u64) {
 }
 
 fn handle(keeper: &Shared, message: Frame) {
+    match message.kind {
+        frame::INPUT => tracing::trace!(id = message.id, bytes = message.payload.len(), "input"),
+        kind => tracing::debug!(
+            kind,
+            id = message.id,
+            bytes = message.payload.len(),
+            "frame"
+        ),
+    }
     match message.kind {
         frame::SPAWN => {
             let size = message.payload.get(..4).and_then(frame::decode_size);
@@ -114,13 +137,21 @@ fn handle(keeper: &Shared, message: Frame) {
                 (Some(size), Some(Ok(launch))) => {
                     spawn(keeper, message.id, pty_size(size), &launch)
                 }
-                _ => eprintln!("keeper: invalid spawn request"),
+                _ => tracing::warn!(id = message.id, "invalid spawn request"),
             }
         }
         frame::INPUT => {
             let state = keeper.lock().unwrap();
-            if let Some(session) = state.sessions.get(&message.id) {
-                let _ = session.input.send(message.payload);
+            match state.sessions.get(&message.id) {
+                Some(session) => {
+                    if session.input.send(message.payload).is_err() {
+                        tracing::warn!(
+                            id = message.id,
+                            "input dropped, the terminal's input writer has stopped"
+                        );
+                    }
+                }
+                None => tracing::warn!(id = message.id, "input for a terminal that does not exist"),
             }
         }
         frame::RESIZE => match frame::decode_size(&message.payload) {
@@ -129,15 +160,21 @@ fn handle(keeper: &Shared, message: Frame) {
                 if let Some(session) = state.sessions.get(&message.id)
                     && let Err(error) = session.master.resize(pty_size(size))
                 {
-                    eprintln!("keeper: could not resize terminal {}: {error}", message.id);
+                    tracing::warn!(id = message.id, "could not resize terminal: {error}");
                 }
             }
-            None => eprintln!("keeper: invalid resize size"),
+            None => tracing::warn!(id = message.id, "invalid resize size"),
         },
         frame::KILL => {
             let mut state = keeper.lock().unwrap();
-            if let Some(session) = state.sessions.get_mut(&message.id) {
-                let _ = session.killer.kill();
+            match state.sessions.get_mut(&message.id) {
+                Some(session) => {
+                    tracing::info!(id = message.id, "killing terminal");
+                    if let Err(error) = session.killer.kill() {
+                        tracing::warn!(id = message.id, "could not kill terminal: {error}");
+                    }
+                }
+                None => tracing::debug!(id = message.id, "kill for a terminal that does not exist"),
             }
         }
         frame::REPLAY => {
@@ -149,7 +186,7 @@ fn handle(keeper: &Shared, message: Frame) {
             state.send(frame::encode(frame::SNAPSHOT, message.id, &payload));
         }
         frame::SHUTDOWN => {
-            eprintln!("keeper: shutting down");
+            tracing::info!("shutting down");
             let mut state = keeper.try_lock();
             if let Ok(state) = &mut state {
                 for session in state.sessions.values_mut() {
@@ -158,7 +195,7 @@ fn handle(keeper: &Shared, message: Frame) {
             }
             std::process::exit(0);
         }
-        kind => eprintln!("keeper: unknown frame kind {kind}"),
+        kind => tracing::warn!("unknown frame kind {kind}"),
     }
 }
 
@@ -185,7 +222,7 @@ fn spawn(keeper: &Shared, id: u64, size: PtySize, launch: &Launch) {
         return;
     }
     if let Err(error) = open(keeper, id, size, launch) {
-        eprintln!("keeper: could not start terminal {id}: {error}");
+        tracing::error!(id, "could not start terminal: {error}");
         keeper
             .lock()
             .unwrap()
@@ -202,8 +239,9 @@ fn open(keeper: &Shared, id: u64, size: PtySize, launch: &Launch) -> Result<(), 
         Some(source) => match terminal_directory(keeper, source) {
             Ok(path) => path,
             Err(error) => {
-                eprintln!(
-                    "keeper: starting terminal {id} in the configured directory, could not read the directory of terminal {source}: {error}"
+                tracing::warn!(
+                    id,
+                    "starting in the configured directory, could not read the directory of terminal {source}: {error}"
                 );
                 launch.cwd.clone()
             }
@@ -226,6 +264,13 @@ fn open(keeper: &Shared, id: u64, size: PtySize, launch: &Launch) -> Result<(), 
         .take_writer()
         .map_err(|error| error.to_string())?;
     let (input, inputs) = mpsc::channel::<Vec<u8>>();
+    tracing::info!(
+        id,
+        pid = ?child.process_id(),
+        command = ?launch.command,
+        cwd = ?launch.cwd,
+        "terminal started"
+    );
     keeper.lock().unwrap().sessions.insert(
         id,
         Session {
@@ -238,24 +283,39 @@ fn open(keeper: &Shared, id: u64, size: PtySize, launch: &Launch) -> Result<(), 
     );
     thread::spawn(move || {
         for bytes in inputs {
-            if writer.write_all(&bytes).is_err() {
+            if let Err(error) = writer.write_all(&bytes) {
+                tracing::error!(
+                    id,
+                    "could not write input to terminal, input stops here: {error}"
+                );
                 break;
             }
         }
+        tracing::info!(id, "input writer stopped");
     });
     let reading = keeper.clone();
     thread::spawn(move || {
         let mut chunk = vec![0; 64 * 1024];
         loop {
             match reader.read(&mut chunk) {
-                Ok(0) | Err(_) => break,
+                Ok(0) => {
+                    tracing::info!(id, "terminal output ended");
+                    break;
+                }
+                Err(error) => {
+                    tracing::info!(id, "terminal output ended: {error}");
+                    break;
+                }
                 Ok(length) => record(&reading, id, &chunk[..length]),
             }
         }
     });
     let waiting = keeper.clone();
     thread::spawn(move || {
-        let _ = child.wait();
+        match child.wait() {
+            Ok(status) => tracing::info!(id, ?status, "terminal process exited"),
+            Err(error) => tracing::error!(id, "could not wait for terminal process: {error}"),
+        }
         let mut state = waiting.lock().unwrap();
         state.sessions.remove(&id);
         state.send(frame::encode(frame::EXIT, id, &[]));
@@ -304,6 +364,7 @@ fn record(keeper: &Shared, id: u64, bytes: &[u8]) {
     let Some(session) = state.sessions.get_mut(&id) else {
         return;
     };
+    tracing::trace!(id, bytes = bytes.len(), "output");
     session.history.extend(bytes);
     let excess = session.history.len().saturating_sub(HISTORY_LIMIT);
     session.history.drain(..excess);

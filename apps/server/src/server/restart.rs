@@ -10,6 +10,7 @@ pub(super) async fn instance(State(app): State<Arc<App>>) -> Json<String> {
 }
 
 pub(super) async fn server(State(app): State<Arc<App>>) -> Json<String> {
+    tracing::info!("restarting the server");
     exit_soon();
     Json(app.instance.clone())
 }
@@ -17,9 +18,11 @@ pub(super) async fn server(State(app): State<Arc<App>>) -> Json<String> {
 pub(super) async fn everything(
     State(app): State<Arc<App>>,
 ) -> Result<Json<String>, (StatusCode, String)> {
-    app.stop_keeper()
-        .await
-        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error))?;
+    tracing::info!("restarting everything");
+    app.stop_keeper().await.map_err(|error| {
+        tracing::error!("could not stop the keeper: {error}");
+        (StatusCode::INTERNAL_SERVER_ERROR, error)
+    })?;
     exit_soon();
     Ok(Json(app.instance.clone()))
 }

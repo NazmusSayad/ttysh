@@ -31,7 +31,7 @@ fn directory() -> PathBuf {
 
 pub(super) fn delete(file: &str) {
     if let Err(error) = fs::remove_file(directory().join(file)) {
-        eprintln!("could not delete logo {file}: {error}");
+        tracing::warn!("could not delete logo {file}: {error}");
     }
 }
 

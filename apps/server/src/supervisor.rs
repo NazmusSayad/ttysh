@@ -1,10 +1,13 @@
 use std::process::{self, Command, Stdio};
 
-use crate::lock::{self, Running};
+use crate::{
+    lock::{self, Running},
+    logging,
+};
 
 pub const RESTART_CODE: i32 = 75;
 
-pub fn run(host: &str, port: u16) {
+pub fn run(host: &str, port: u16, debug: bool) {
     let _lock = match lock::try_acquire() {
         Ok(Some(lock)) => lock,
         Ok(None) => {
@@ -20,31 +23,38 @@ pub fn run(host: &str, port: u16) {
             process::exit(1);
         }
     };
+    let session = logging::run_id();
+    logging::init(&format!("session-{session}.log"), debug, true);
     let running = Running {
         pid: process::id(),
         host: host.to_string(),
         port,
     };
     if let Err(error) = lock::write_running(&running) {
-        eprintln!("could not record the running ttysh: {error}");
+        tracing::error!("could not record the running ttysh: {error}");
         process::exit(1);
     }
     let executable = match std::env::current_exe() {
         Ok(executable) => executable,
         Err(error) => {
-            eprintln!("could not find the ttysh executable: {error}");
+            tracing::error!("could not find the ttysh executable: {error}");
             process::exit(1);
         }
     };
     loop {
-        let mut child = match Command::new(&executable)
-            .args(["--host", host, "--port", &port.to_string(), "server"])
+        let mut command = Command::new(&executable);
+        command.args(["--host", host, "--port", &port.to_string()]);
+        if debug {
+            command.arg("--debug");
+        }
+        let mut child = match command
+            .args(["server", "--session", &session])
             .stdin(Stdio::piped())
             .spawn()
         {
             Ok(child) => child,
             Err(error) => {
-                eprintln!("could not start the server: {error}");
+                tracing::error!("could not start the server: {error}");
                 process::exit(1);
             }
         };
@@ -53,12 +63,18 @@ pub fn run(host: &str, port: u16) {
         drop(stdin);
         match status {
             Ok(status) => match status.code() {
-                Some(RESTART_CODE) => println!("restarting"),
-                Some(code) => process::exit(code),
-                None => process::exit(1),
+                Some(RESTART_CODE) => tracing::info!("server asked to restart"),
+                Some(code) => {
+                    tracing::info!(code, "server exited");
+                    process::exit(code);
+                }
+                None => {
+                    tracing::error!(%status, "server was stopped by a signal");
+                    process::exit(1);
+                }
             },
             Err(error) => {
-                eprintln!("could not wait for the server: {error}");
+                tracing::error!("could not wait for the server: {error}");
                 process::exit(1);
             }
         }

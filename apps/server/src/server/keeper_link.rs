@@ -1,5 +1,5 @@
 use std::{
-    fs, io,
+    io,
     process::{Command, Stdio},
     sync::{Arc, atomic::Ordering},
     time::Duration,
@@ -8,7 +8,7 @@ use std::{
 use tokio::{io::AsyncWriteExt, net::TcpStream, sync::mpsc};
 
 use super::app::App;
-use crate::{frame, utils::paths::data_directory};
+use crate::frame;
 
 pub(super) async fn link(app: Arc<App>, mut frames: mpsc::UnboundedReceiver<Vec<u8>>) {
     loop {
@@ -19,13 +19,14 @@ pub(super) async fn link(app: Arc<App>, mut frames: mpsc::UnboundedReceiver<Vec<
         let Some(stream) = connect_keeper(&app).await else {
             continue;
         };
+        tracing::info!("connected to the keeper");
         let (mut reader, mut writer) = stream.into_split();
         let reading = async {
             loop {
                 match frame::read_async(&mut reader).await {
                     Ok(message) => app.keeper_frame(message),
                     Err(error) => {
-                        eprintln!("keeper connection lost: {error}");
+                        tracing::warn!("keeper connection lost: {error}");
                         break;
                     }
                 }
@@ -34,7 +35,7 @@ pub(super) async fn link(app: Arc<App>, mut frames: mpsc::UnboundedReceiver<Vec<
         let writing = async {
             while let Some(bytes) = frames.recv().await {
                 if let Err(error) = writer.write_all(&bytes).await {
-                    eprintln!("could not write to keeper: {error}");
+                    tracing::error!("could not write to keeper: {error}");
                     break;
                 }
             }
@@ -54,8 +55,9 @@ async fn connect_keeper(app: &App) -> Option<TcpStream> {
         if let Ok(stream) = TcpStream::connect(("127.0.0.1", crate::KEEPER_PORT)).await {
             return Some(stream);
         }
-        if let Err(error) = start_keeper() {
-            eprintln!("could not start keeper: {error}");
+        tracing::info!("keeper is not running, starting it");
+        if let Err(error) = start_keeper(app.debug) {
+            tracing::error!("could not start keeper: {error}");
         }
         for _ in 0..50 {
             tokio::time::sleep(Duration::from_millis(100)).await;
@@ -63,23 +65,20 @@ async fn connect_keeper(app: &App) -> Option<TcpStream> {
                 return Some(stream);
             }
         }
-        eprintln!("keeper did not start in time, trying again");
+        tracing::warn!("keeper did not start in time, trying again");
     }
 }
 
-fn start_keeper() -> io::Result<()> {
-    let directory = data_directory();
-    fs::create_dir_all(&directory)?;
-    let log = fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(directory.join("keeper.log"))?;
+fn start_keeper(debug: bool) -> io::Result<()> {
     let mut command = Command::new(std::env::current_exe()?);
+    if debug {
+        command.arg("--debug");
+    }
     command
         .arg("keeper")
         .stdin(Stdio::null())
-        .stdout(log.try_clone()?)
-        .stderr(log);
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
     #[cfg(unix)]
     {
         use std::os::unix::process::CommandExt;

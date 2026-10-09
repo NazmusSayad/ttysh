@@ -26,7 +26,7 @@ use crate::{
     frame::{self, Frame},
 };
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(
     tag = "type",
     rename_all = "camelCase",
@@ -65,10 +65,11 @@ pub(super) struct App {
     pub(super) instance: String,
     pub(super) stopping: AtomicBool,
     pub(super) keeper_gone: Notify,
+    pub(super) debug: bool,
 }
 
 impl App {
-    pub(super) fn new(path: PathBuf, keeper: mpsc::UnboundedSender<Vec<u8>>) -> Self {
+    pub(super) fn new(path: PathBuf, keeper: mpsc::UnboundedSender<Vec<u8>>, debug: bool) -> Self {
         App {
             inner: Mutex::new(Inner {
                 layout: layout::load(&path),
@@ -86,12 +87,14 @@ impl App {
                 .to_string(),
             stopping: AtomicBool::new(false),
             keeper_gone: Notify::new(),
+            debug,
         }
     }
 }
 
 pub(super) async fn connect(app: Arc<App>, socket: WebSocket) {
     let connection = app.connections.fetch_add(1, Ordering::Relaxed);
+    tracing::info!(connection, "browser connected");
     let (mut sink, mut stream) = socket.split();
     let (sender, mut receiver) = mpsc::unbounded_channel();
     let forwarding = tokio::spawn(async move {
@@ -105,13 +108,14 @@ pub(super) async fn connect(app: Arc<App>, socket: WebSocket) {
         match message {
             Message::Text(text) => match serde_json::from_str(&text) {
                 Ok(request) => app.request(connection, &sender, request),
-                Err(error) => eprintln!("invalid request: {error}"),
+                Err(error) => tracing::warn!(connection, "invalid request: {error}"),
             },
             Message::Binary(bytes) => app.input(connection, &bytes),
             Message::Ping(_) | Message::Pong(_) | Message::Close(_) => {}
         }
     }
     forwarding.abort();
+    tracing::info!(connection, "browser disconnected");
     let mut inner = app.inner.lock().unwrap();
     if inner
         .active
@@ -130,6 +134,7 @@ impl App {
             .active
             .as_ref()
             .is_some_and(|client| client.connection == connection);
+        tracing::debug!(connection, active, ?request, "request");
         match request {
             Request::Hello { client_id } => {
                 let available = match &inner.active {
@@ -147,6 +152,7 @@ impl App {
                         },
                     );
                 } else {
+                    tracing::info!(connection, "another browser is active, pausing this one");
                     send(sender, json!({ "type": "paused" }));
                 }
                 return;
@@ -249,12 +255,19 @@ impl App {
             .as_ref()
             .is_some_and(|client| client.connection == connection)
         {
+            tracing::debug!(connection, "ignoring input from an inactive browser");
             return;
         }
         if bytes.len() < 8 {
-            eprintln!("input message is too short");
+            tracing::warn!(connection, "input message is too short");
             return;
         }
+        tracing::trace!(
+            connection,
+            id = frame::read_u64(bytes),
+            bytes = bytes.len() - 8,
+            "input"
+        );
         self.to_keeper(frame::encode(
             frame::INPUT,
             frame::read_u64(bytes),
@@ -266,6 +279,19 @@ impl App {
         if self.stopping.load(Ordering::SeqCst) {
             return;
         }
+        match message.kind {
+            frame::OUTPUT => tracing::trace!(
+                id = message.id,
+                bytes = message.payload.len(),
+                "keeper output"
+            ),
+            kind => tracing::debug!(
+                kind,
+                id = message.id,
+                bytes = message.payload.len(),
+                "keeper frame"
+            ),
+        }
         let mut guard = self.inner.lock().unwrap();
         let inner = &mut *guard;
         match message.kind {
@@ -276,7 +302,7 @@ impl App {
             }
             frame::SNAPSHOT => {
                 if message.payload.len() < 8 {
-                    eprintln!("snapshot is too short");
+                    tracing::warn!(id = message.id, "snapshot is too short");
                     return;
                 }
                 let generation = frame::read_u64(&message.payload);
@@ -285,6 +311,7 @@ impl App {
                 }
             }
             frame::EXIT => {
+                tracing::info!(id = message.id, "terminal exited");
                 inner.pending.remove(&message.id);
                 if remove_tab(&mut inner.layout, message.id) {
                     self.save(&inner.layout);
@@ -300,18 +327,21 @@ impl App {
                     .map(|chunk| u64::from_be_bytes(*chunk))
                     .collect();
                 let tabs = tab_ids(&inner.layout);
+                tracing::info!(?live, ?tabs, "keeper listed its terminals");
                 for id in &live {
                     if !tabs.contains(id) {
+                        tracing::info!(id, "killing a terminal that is not in the layout");
                         self.to_keeper(frame::encode(frame::KILL, *id, &[]));
                     }
                 }
                 for id in &tabs {
                     if !live.contains(id) {
+                        tracing::info!(id, "restarting a terminal that the keeper does not have");
                         let directory = tab_group(&inner.layout, *id)
                             .and_then(|group| group.directory.as_deref());
                         match config::launch(directory) {
                             Ok(launch) => self.spawn(*id, &launch),
-                            Err(error) => eprintln!(
+                            Err(error) => tracing::error!(
                                 "could not load config, terminal {id} not started: {error}"
                             ),
                         }
@@ -319,15 +349,24 @@ impl App {
                 }
                 self.reset(inner);
             }
-            kind => eprintln!("unknown keeper frame kind {kind}"),
+            kind => tracing::warn!("unknown keeper frame kind {kind}"),
         }
     }
 
     fn activate(&self, inner: &mut Inner, client: Client) {
         let connection = client.connection;
+        tracing::info!(
+            connection,
+            client_id = client.client_id,
+            "browser is now active"
+        );
         if let Some(previous) = inner.active.replace(client)
             && previous.connection != connection
         {
+            tracing::info!(
+                connection = previous.connection,
+                "pausing the previously active browser"
+            );
             send(&previous.sender, json!({ "type": "paused" }));
         }
         self.reset(inner);
@@ -360,7 +399,7 @@ impl App {
         let mut launch = match config::launch(group.directory.as_deref()) {
             Ok(launch) => launch,
             Err(error) => {
-                eprintln!("could not load config, terminal not created: {error}");
+                tracing::error!("could not load config, terminal not created: {error}");
                 return;
             }
         };
@@ -376,8 +415,10 @@ impl App {
     }
 
     fn spawn(&self, id: u64, launch: &Launch) {
+        let launch = serde_json::to_vec(launch).expect("launch settings serialize");
+        tracing::info!(id, launch = %String::from_utf8_lossy(&launch), "starting terminal");
         let mut payload = frame::encode_size(80, 24);
-        payload.extend(serde_json::to_vec(launch).expect("launch settings serialize"));
+        payload.extend(launch);
         self.to_keeper(frame::encode(frame::SPAWN, id, &payload));
     }
 
@@ -436,12 +477,14 @@ impl App {
 
     fn save(&self, layout: &Layout) {
         if let Err(error) = layout::write_layout(&self.path, layout) {
-            eprintln!("could not save layout: {error}");
+            tracing::error!("could not save layout: {error}");
         }
     }
 
     fn to_keeper(&self, bytes: Vec<u8>) {
-        let _ = self.keeper.send(bytes);
+        if self.keeper.send(bytes).is_err() {
+            tracing::error!("keeper link has stopped, frame dropped");
+        }
     }
 }
 
