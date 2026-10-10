@@ -34,6 +34,7 @@ pub struct Config {
 struct Behavior {
     shift_enter_newline: bool,
     show_git_branch: bool,
+    capture_shortcuts: bool,
 }
 
 impl Default for Behavior {
@@ -41,6 +42,7 @@ impl Default for Behavior {
         Behavior {
             shift_enter_newline: true,
             show_git_branch: true,
+            capture_shortcuts: true,
         }
     }
 }

@@ -281,6 +281,14 @@ export function SettingsPage(props: { config: Config; platform: Platform }) {
               }
             />
           </Row>
+          <Row label="Capture browser shortcuts in fullscreen">
+            <Switch
+              checked={draft.behavior.captureShortcuts}
+              onCheckedChange={(captureShortcuts) =>
+                update('behavior', { captureShortcuts })
+              }
+            />
+          </Row>
         </Section>
         <Section title="Layout">
           {(['top', 'right', 'bottom', 'left'] as const).map((side) => (

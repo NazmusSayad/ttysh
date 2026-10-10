@@ -6,6 +6,7 @@ import { App } from './app'
 import { applyStyle, loadConfig, loadPlatform } from './config'
 import { start } from './session'
 import { SettingsPage } from './settings-page'
+import { startShortcuts } from './shortcuts'
 import { loadThemes } from './themes'
 
 const root = document.getElementById('root')
@@ -29,6 +30,7 @@ async function main(container: HTMLElement) {
       return
     }
     start(config, platform)
+    startShortcuts()
     createRoot(container).render(
       <StrictMode>
         <App />
