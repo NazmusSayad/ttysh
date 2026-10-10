@@ -36,6 +36,7 @@
   },
   "behavior": {
     "shiftEnterNewline": true,
-    "showGitBranch": true
+    "showGitBranch": true,
+    "captureShortcuts": false
   }
 }

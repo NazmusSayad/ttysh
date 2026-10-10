@@ -12,7 +12,11 @@ export type Config = {
   padding: { top: number; right: number; bottom: number; left: number }
   scrollback: number
   theme: { name: string; boldIsBright: boolean; colors?: ThemeColors }
-  behavior: { shiftEnterNewline: boolean; showGitBranch: boolean }
+  behavior: {
+    shiftEnterNewline: boolean
+    showGitBranch: boolean
+    captureShortcuts: boolean
+  }
 }
 
 export type ThemeColors = {

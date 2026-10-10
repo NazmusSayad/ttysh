@@ -3,6 +3,7 @@ import {
   Cancel01Icon,
   Delete02Icon,
   Folder01Icon,
+  FullScreenIcon,
   GitBranchIcon,
   ImageAdd01Icon,
   ImageRemove01Icon,
@@ -51,6 +52,7 @@ import {
   toggleCtrl,
   uploadLogo,
 } from '@/session'
+import { toggleFullscreen } from '@/shortcuts'
 import { StatusOverlay } from '@/status-overlay'
 
 type Prompt = {
@@ -201,6 +203,16 @@ export function App() {
           <HugeiconsIcon icon={Settings01Icon} className="size-4" />
           <span className="md:hidden">Settings</span>
         </a>
+        {state.config.behavior.captureShortcuts && (
+          <button
+            className="text-muted-foreground hover:bg-accent hover:text-foreground flex h-8 flex-none items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors md:size-9 md:justify-center md:px-0"
+            title="Fullscreen"
+            onClick={() => void toggleFullscreen().catch(showError)}
+          >
+            <HugeiconsIcon icon={FullScreenIcon} className="size-4" />
+            <span className="md:hidden">Fullscreen</span>
+          </button>
+        )}
       </aside>
       <main className="flex min-w-0 flex-1 flex-col">
         <header
