@@ -263,6 +263,16 @@ export function SettingsPage(props: { config: Config; platform: Platform }) {
             />
           </Row>
         </Section>
+        <Section title="Keyboard">
+          <Row label="Shift+Enter inserts a new line">
+            <Switch
+              checked={draft.keyboard.shiftEnterNewline}
+              onCheckedChange={(shiftEnterNewline) =>
+                update('keyboard', { shiftEnterNewline })
+              }
+            />
+          </Row>
+        </Section>
         <Section title="Layout">
           {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
             <Row key={side} label={`Padding ${side}`}>

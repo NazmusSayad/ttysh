@@ -296,6 +296,16 @@ export function isFindShortcut(event: KeyboardEvent) {
   return event.ctrlKey && event.shiftKey && !event.altKey && !event.metaKey
 }
 
+function isShiftEnter(event: KeyboardEvent) {
+  return (
+    event.key === 'Enter' &&
+    event.shiftKey &&
+    !event.ctrlKey &&
+    !event.altKey &&
+    !event.metaKey
+  )
+}
+
 function createSession(id: number) {
   const terminal = new Terminal({
     ...terminalOptions(state.config),
@@ -329,7 +339,13 @@ function createSession(id: number) {
     setState({ progress: { ...state.progress, [id]: value } })
   )
   terminal.attachCustomKeyEventHandler((event) => {
-    if (event.type !== 'keydown' || !isFindShortcut(event)) return true
+    if (event.type !== 'keydown') return true
+    if (state.config.keyboard.shiftEnterNewline && isShiftEnter(event)) {
+      event.preventDefault()
+      sendInput(id, '\x1b\r')
+      return false
+    }
+    if (!isFindShortcut(event)) return true
     event.preventDefault()
     setState({ finding: id })
     document.querySelector<HTMLInputElement>('[data-find]')?.select()
