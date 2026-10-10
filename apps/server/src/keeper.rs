@@ -52,6 +52,13 @@ type Shared = Arc<Mutex<Keeper>>;
 
 pub fn run(debug: bool) {
     logging::init(&format!("keeper-{}.log", logging::run_id()), debug, false);
+    #[cfg(windows)]
+    if unsafe { windows_sys::Win32::System::Console::SetConsoleCtrlHandler(None, 0) } == 0 {
+        tracing::warn!(
+            "could not enable ctrl+c for terminals: {}",
+            std::io::Error::last_os_error()
+        );
+    }
     let listener = TcpListener::bind(("127.0.0.1", crate::KEEPER_PORT))
         .expect("keeper could not bind its port");
     tracing::info!("listening on 127.0.0.1:{}", crate::KEEPER_PORT);
