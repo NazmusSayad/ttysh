@@ -31,7 +31,7 @@
   },
   "scrollback": 100000,
   "theme": {
-    "name": "one-dark",
+    "name": "one-dark-dim",
     "boldIsBright": true
   },
   "keyboard": {
