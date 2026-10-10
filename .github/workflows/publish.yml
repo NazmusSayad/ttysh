@@ -34,6 +34,8 @@ jobs:
             npm: win32-x64
             binary: sshtty.exe
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v5
@@ -52,6 +54,12 @@ jobs:
           name: ${{ matrix.npm }}
           path: target/${{ matrix.target }}/release/${{ matrix.binary }}
           if-no-files-found: error
+      - shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tar -czf sshtty-${{ matrix.target }}.tar.gz -C target/${{ matrix.target }}/release ${{ matrix.binary }}
+          gh release upload "${{ github.event.release.tag_name }}" sshtty-${{ matrix.target }}.tar.gz --clobber
 
   publish:
     needs: build
