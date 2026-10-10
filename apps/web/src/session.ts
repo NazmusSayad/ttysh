@@ -1,7 +1,11 @@
+import { ClipboardAddon } from '@xterm/addon-clipboard'
 import { FitAddon } from '@xterm/addon-fit'
 import { ImageAddon } from '@xterm/addon-image'
 import { LigaturesAddon } from '@xterm/addon-ligatures'
+import { type IProgressState, ProgressAddon } from '@xterm/addon-progress'
+import { type ISearchResultChangeEvent, SearchAddon } from '@xterm/addon-search'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
+import { WebLinksAddon } from '@xterm/addon-web-links'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal } from '@xterm/xterm'
 import {
@@ -29,6 +33,8 @@ type State = {
   config: Config
   platform: Platform
   titles: Record<number, string>
+  progress: Record<number, IProgressState>
+  finding: number | null
 }
 
 type Request =
@@ -51,11 +57,13 @@ type Message =
 type Session = {
   terminal: Terminal
   fit: FitAddon
+  search: SearchAddon
   element: HTMLDivElement
   ligatures: LigaturesAddon | null
 }
 
 const replaying = new Set<number>()
+const isMac = navigator.userAgent.includes('Mac')
 
 export const clientId =
   sessionStorage.getItem('clientId') ??
@@ -78,6 +86,8 @@ export function start(config: Config, platform: Platform) {
     config,
     platform,
     titles: {},
+    progress: {},
+    finding: null,
   }
   socket = connect()
   document.addEventListener('visibilitychange', () => {
@@ -146,6 +156,42 @@ export function sendInput(id: number, data: string | Uint8Array) {
   new DataView(message.buffer).setBigUint64(0, BigInt(id))
   message.set(bytes, 8)
   socket.send(message)
+}
+
+export function find(
+  id: number,
+  text: string,
+  backwards: boolean,
+  incremental: boolean
+) {
+  const colors = state.config.colors
+  const options = {
+    incremental,
+    decorations: {
+      matchBackground: colors.palette[8],
+      matchOverviewRuler: colors.palette[8],
+      activeMatchBorder: colors.palette[3],
+      activeMatchColorOverviewRuler: colors.palette[3],
+    },
+  }
+  const search = getSession(id).search
+  if (backwards) search.findPrevious(text, options)
+  else search.findNext(text, options)
+}
+
+export function onFindResults(
+  id: number,
+  listener: (results: ISearchResultChangeEvent) => void
+) {
+  const subscription = getSession(id).search.onDidChangeResults(listener)
+  return () => subscription.dispose()
+}
+
+export function closeFind(id: number) {
+  const session = getSession(id)
+  session.search.clearDecorations()
+  setState({ finding: null })
+  session.terminal.focus()
 }
 
 export function toggleCtrl() {
@@ -225,16 +271,56 @@ function sync(layout: Layout) {
   }
 }
 
+function openLink(event: MouseEvent, uri: string) {
+  if (isMac ? event.metaKey : event.ctrlKey)
+    window.open(uri, '_blank', 'noopener')
+}
+
+export function isFindShortcut(event: KeyboardEvent) {
+  if (event.key.toLowerCase() !== 'f') return false
+  if (isMac) return event.metaKey && !event.ctrlKey && !event.altKey
+  return event.ctrlKey && event.shiftKey && !event.altKey && !event.metaKey
+}
+
 function createSession(id: number) {
   const terminal = new Terminal({
     ...terminalOptions(state.config),
     allowProposedApi: true,
+    linkHandler: { activate: openLink },
   })
   const fit = new FitAddon()
   terminal.loadAddon(fit)
   terminal.loadAddon(new Unicode11Addon())
   terminal.unicode.activeVersion = '11'
   terminal.loadAddon(new ImageAddon())
+  terminal.loadAddon(new WebLinksAddon(openLink))
+  terminal.loadAddon(
+    new ClipboardAddon(undefined, {
+      readText: () => '',
+      writeText: async (_selection, text) => {
+        if (replaying.has(id)) return
+        if (!window.isSecureContext) {
+          console.warn('copy from the terminal needs https or localhost')
+          return
+        }
+        await navigator.clipboard.writeText(text)
+      },
+    })
+  )
+  const search = new SearchAddon()
+  terminal.loadAddon(search)
+  const progress = new ProgressAddon()
+  terminal.loadAddon(progress)
+  progress.onChange((value) =>
+    setState({ progress: { ...state.progress, [id]: value } })
+  )
+  terminal.attachCustomKeyEventHandler((event) => {
+    if (event.type !== 'keydown' || !isFindShortcut(event)) return true
+    event.preventDefault()
+    setState({ finding: id })
+    document.querySelector<HTMLInputElement>('[data-find]')?.select()
+    return false
+  })
   terminal.onData((data) => {
     if (!replaying.has(id)) sendInput(id, applyCtrl(data))
   })
@@ -270,7 +356,7 @@ function createSession(id: number) {
     },
     true
   )
-  return { terminal, fit, element, ligatures: null }
+  return { terminal, fit, search, element, ligatures: null }
 }
 
 async function pasteImages(terminal: Terminal, images: File[]) {
@@ -301,9 +387,14 @@ function reportSize(id: number, terminal: Terminal) {
   send({ type: 'resize', id, cols: terminal.cols, rows: terminal.rows })
 }
 
-export function mount(id: number, container: HTMLElement) {
+function getSession(id: number) {
   const session = sessions.get(id)
   if (!session) throw new Error(`terminal ${id} does not exist`)
+  return session
+}
+
+export function mount(id: number, container: HTMLElement) {
+  const session = getSession(id)
   container.appendChild(session.element)
   if (!session.terminal.element) {
     session.terminal.open(session.element)
