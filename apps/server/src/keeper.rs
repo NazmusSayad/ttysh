@@ -1,10 +1,12 @@
 use std::{
     collections::{HashMap, VecDeque},
+    fs,
     io::{Read, Write},
     net::{Shutdown, TcpListener, TcpStream},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex, mpsc},
     thread,
+    time::Duration,
 };
 
 use portable_pty::{ChildKiller, CommandBuilder, MasterPty, PtySize, native_pty_system};
@@ -32,6 +34,7 @@ struct Session {
     killer: Box<dyn ChildKiller + Send + Sync>,
     pid: Option<u32>,
     input: mpsc::Sender<Vec<u8>>,
+    branch: Option<String>,
 }
 
 #[derive(Default)]
@@ -71,6 +74,8 @@ pub fn run(debug: bool) {
     lock::write_keeper_port(port).expect("keeper could not write its port");
     tracing::info!("listening on 127.0.0.1:{port}");
     let keeper = Shared::default();
+    let watching = keeper.clone();
+    thread::spawn(move || watch_branches(&watching));
     for (number, stream) in listener.incoming().enumerate() {
         match stream {
             Ok(stream) => {
@@ -117,6 +122,11 @@ fn serve(keeper: &Shared, stream: TcpStream, number: u64) {
             .flat_map(|id| id.to_be_bytes())
             .collect();
         let _ = sender.send(frame::encode(frame::LIST, 0, &ids));
+        for (id, session) in &state.sessions {
+            if let Some(branch) = &session.branch {
+                let _ = sender.send(frame::encode(frame::BRANCH, *id, branch.as_bytes()));
+            }
+        }
         let terminals: Vec<&u64> = state.sessions.keys().collect();
         tracing::info!(connection = number, ?terminals, "server connected");
         state.link = Some((number, sender));
@@ -229,6 +239,57 @@ fn terminal_directory(keeper: &Shared, id: u64) -> Result<PathBuf, String> {
     current_directory(pid).map_err(|error| error.to_string())
 }
 
+fn watch_branches(keeper: &Shared) {
+    loop {
+        thread::sleep(Duration::from_secs(1));
+        let pids: Vec<(u64, u32)> = keeper
+            .lock()
+            .unwrap()
+            .sessions
+            .iter()
+            .filter_map(|(id, session)| session.pid.map(|pid| (*id, pid)))
+            .collect();
+        for (id, pid) in pids {
+            let branch = current_directory(pid)
+                .ok()
+                .and_then(|directory| git_branch(&directory));
+            let mut state = keeper.lock().unwrap();
+            let Some(session) = state.sessions.get_mut(&id) else {
+                continue;
+            };
+            if session.branch == branch {
+                continue;
+            }
+            session.branch.clone_from(&branch);
+            state.send(frame::encode(
+                frame::BRANCH,
+                id,
+                branch.unwrap_or_default().as_bytes(),
+            ));
+        }
+    }
+}
+
+fn git_branch(directory: &Path) -> Option<String> {
+    let git = directory
+        .ancestors()
+        .map(|folder| folder.join(".git"))
+        .find(|git| git.exists())?;
+    let git = match git.is_file() {
+        true => {
+            let text = fs::read_to_string(&git).ok()?;
+            git.parent()?.join(text.strip_prefix("gitdir:")?.trim())
+        }
+        false => git,
+    };
+    let head = fs::read_to_string(git.join("HEAD")).ok()?;
+    let head = head.trim();
+    match head.strip_prefix("ref: refs/heads/") {
+        Some(branch) => Some(branch.to_string()),
+        None => head.get(..7).map(str::to_string),
+    }
+}
+
 fn pty_size(size: (u16, u16)) -> PtySize {
     PtySize {
         cols: size.0,
@@ -300,6 +361,7 @@ fn open(keeper: &Shared, id: u64, size: PtySize, launch: &Launch) -> Result<(), 
             killer: child.clone_killer(),
             pid: child.process_id(),
             input,
+            branch: None,
         },
     );
     thread::spawn(move || {

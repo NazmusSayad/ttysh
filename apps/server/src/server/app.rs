@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     path::PathBuf,
     sync::{
         Arc, Mutex,
@@ -55,6 +55,7 @@ struct Inner {
     active: Option<Client>,
     generation: u64,
     pending: HashSet<u64>,
+    branches: HashMap<u64, String>,
 }
 
 pub(super) struct App {
@@ -76,6 +77,7 @@ impl App {
                 active: None,
                 generation: 0,
                 pending: HashSet::new(),
+                branches: HashMap::new(),
             }),
             keeper,
             path,
@@ -310,9 +312,23 @@ impl App {
                     forward(inner, message.id, true, &message.payload[8..]);
                 }
             }
+            frame::BRANCH => {
+                let branch = String::from_utf8_lossy(&message.payload).into_owned();
+                match branch.is_empty() {
+                    true => inner.branches.remove(&message.id),
+                    false => inner.branches.insert(message.id, branch.clone()),
+                };
+                if let Some(client) = &inner.active {
+                    send(
+                        &client.sender,
+                        json!({ "type": "branch", "id": message.id, "branch": inner.branches.get(&message.id) }),
+                    );
+                }
+            }
             frame::EXIT => {
                 tracing::info!(id = message.id, "terminal exited");
                 inner.pending.remove(&message.id);
+                inner.branches.remove(&message.id);
                 if remove_tab(&mut inner.layout, message.id) {
                     self.save(&inner.layout);
                     publish(inner);
@@ -328,6 +344,7 @@ impl App {
                     .collect();
                 let tabs = tab_ids(&inner.layout);
                 tracing::info!(?live, ?tabs, "keeper listed its terminals");
+                inner.branches.clear();
                 for id in &live {
                     if !tabs.contains(id) {
                         tracing::info!(id, "killing a terminal that is not in the layout");
@@ -379,7 +396,7 @@ impl App {
         inner.generation += 1;
         send(
             &client.sender,
-            json!({ "type": "active", "layout": inner.layout, "instance": self.instance }),
+            json!({ "type": "active", "layout": inner.layout, "instance": self.instance, "branches": inner.branches }),
         );
         inner.pending.clear();
         for id in tab_ids(&inner.layout) {

@@ -1,13 +1,13 @@
 [
   {
-    "id": "one-dark-extreme",
-    "name": "One Dark Extreme",
+    "id": "one-dark-darker",
+    "name": "One Dark Darker",
     "colors": {
-      "background": "#16191D",
+      "background": "#1C2025",
       "foreground": "#ABB2BF",
       "cursor": "#FFFFFF",
-      "cursorText": "#16191D",
-      "selectionBackground": "#323842",
+      "cursorText": "#1C2025",
+      "selectionBackground": "#3B414D",
       "selectionForeground": "#ABB2BF",
       "palette": [
         "#4A4F5A",
@@ -26,6 +26,36 @@
         "#E0A8F1",
         "#82D2DC",
         "#FFFFFF"
+      ]
+    }
+  },
+  {
+    "id": "one-dark-pro",
+    "name": "One Dark Pro",
+    "colors": {
+      "background": "#282C34",
+      "foreground": "#ABB2BF",
+      "cursor": "#528BFF",
+      "cursorText": "#282C34",
+      "selectionBackground": "#41454E",
+      "selectionForeground": "#ABB2BF",
+      "palette": [
+        "#3F4451",
+        "#E05561",
+        "#8CC265",
+        "#D18F52",
+        "#4AA5F0",
+        "#C162DE",
+        "#42B3C2",
+        "#D7DAE0",
+        "#4F5666",
+        "#FF616E",
+        "#A5E075",
+        "#F0A45D",
+        "#4DC4FF",
+        "#DE73FF",
+        "#4CD1E0",
+        "#E6E6E6"
       ]
     }
   },

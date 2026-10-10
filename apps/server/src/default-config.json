@@ -16,7 +16,7 @@
   "font": {
     "family": "FiraCode Nerd Font",
     "size": 14,
-    "lineHeight": 1.2,
+    "lineHeight": 1.35,
     "ligatures": true
   },
   "cursor": {
@@ -31,10 +31,11 @@
   },
   "scrollback": 100000,
   "theme": {
-    "name": "one-dark-extreme",
+    "name": "one-dark-darker",
     "boldIsBright": true
   },
-  "keyboard": {
-    "shiftEnterNewline": true
+  "behavior": {
+    "shiftEnterNewline": true,
+    "showGitBranch": true
   }
 }

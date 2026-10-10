@@ -12,6 +12,7 @@ pub const LIST: u8 = 10;
 pub const OUTPUT: u8 = 11;
 pub const SNAPSHOT: u8 = 12;
 pub const EXIT: u8 = 13;
+pub const BRANCH: u8 = 14;
 
 pub struct Frame {
     pub kind: u8,
