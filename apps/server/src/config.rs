@@ -185,20 +185,69 @@ fn validate_colors(colors: &Colors) -> Result<(), String> {
     Ok(())
 }
 
-fn read() -> Result<Config, String> {
-    let path = paths::config_file();
-    let text = fs::read_to_string(&path)
-        .map_err(|error| format!("could not read {}: {error}", path.display()))?;
-    let config: Config = serde_json::from_str(&text)
-        .map_err(|error| format!("invalid {}: {error}", path.display()))?;
-    validate(&config).map_err(|error| format!("invalid {}: {error}", path.display()))?;
+fn parse(value: &serde_json::Value) -> Result<Config, String> {
+    let config: Config =
+        serde_json::from_value(value.clone()).map_err(|error| error.to_string())?;
+    validate(&config)?;
     Ok(config)
 }
 
-pub async fn handler() -> Result<Json<Config>, (StatusCode, String)> {
-    read()
-        .map(Json)
-        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error))
+fn read() -> Config {
+    let path = paths::config_file();
+    let defaults: serde_json::Value =
+        serde_json::from_str(DEFAULT).expect("default config is valid");
+    let user = match fs::read_to_string(&path) {
+        Ok(text) => match serde_json::from_str::<serde_json::Value>(&text) {
+            Ok(serde_json::Value::Object(user)) => user,
+            Ok(_) => {
+                tracing::warn!(
+                    "{} is not an object, using the default config",
+                    path.display()
+                );
+                serde_json::Map::new()
+            }
+            Err(error) => {
+                tracing::warn!(
+                    "invalid {}, using the default config: {error}",
+                    path.display()
+                );
+                serde_json::Map::new()
+            }
+        },
+        Err(error) => {
+            tracing::warn!(
+                "could not read {}, using the default config: {error}",
+                path.display()
+            );
+            serde_json::Map::new()
+        }
+    };
+    let mut value = defaults.clone();
+    for key in defaults
+        .as_object()
+        .expect("default config is an object")
+        .keys()
+    {
+        let Some(section) = user.get(key) else {
+            continue;
+        };
+        let mut candidate = value.clone();
+        candidate[key] = section.clone();
+        match parse(&candidate) {
+            Ok(_) => value = candidate,
+            Err(error) => {
+                tracing::warn!(
+                    "invalid {key} in {}, using its default: {error}",
+                    path.display()
+                )
+            }
+        }
+    }
+    parse(&value).expect("merged config is valid")
+}
+
+pub async fn handler() -> Json<Config> {
+    Json(read())
 }
 
 pub fn save(config: Config) -> Result<Config, (StatusCode, String)> {
@@ -223,7 +272,7 @@ pub async fn platform() -> Json<&'static str> {
 }
 
 pub fn launch(directory: Option<&str>) -> Result<Launch, String> {
-    let shells = read()?.shell;
+    let shells = read().shell;
     let shell = match std::env::consts::OS {
         "macos" => shells.macos,
         "linux" => shells.linux,
