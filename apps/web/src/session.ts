@@ -1,5 +1,6 @@
 import { FitAddon } from '@xterm/addon-fit'
 import { LigaturesAddon } from '@xterm/addon-ligatures'
+import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal } from '@xterm/xterm'
 import {
@@ -230,6 +231,8 @@ function createSession(id: number) {
   })
   const fit = new FitAddon()
   terminal.loadAddon(fit)
+  terminal.loadAddon(new Unicode11Addon())
+  terminal.unicode.activeVersion = '11'
   terminal.onData((data) => {
     if (!replaying.has(id)) sendInput(id, applyCtrl(data))
   })
@@ -248,7 +251,39 @@ function createSession(id: number) {
   )
   const element = document.createElement('div')
   element.className = 'h-full'
+  element.addEventListener(
+    'paste',
+    (event) => {
+      if (!event.clipboardData) return
+      if (event.clipboardData.getData('text/plain') !== '') return
+      const images = [...event.clipboardData.files].filter((file) =>
+        file.type.startsWith('image/')
+      )
+      if (images.length === 0) return
+      event.preventDefault()
+      event.stopPropagation()
+      pasteImages(terminal, images).catch((error: unknown) =>
+        console.error('could not paste image', error)
+      )
+    },
+    true
+  )
   return { terminal, fit, element, ligatures: null }
+}
+
+async function pasteImages(terminal: Terminal, images: File[]) {
+  const paths: string[] = []
+  for (const image of images) {
+    const response = await fetch('/api/paste', {
+      method: 'POST',
+      headers: { 'Content-Type': image.type },
+      body: image,
+    })
+    if (!response.ok) throw new Error(await response.text())
+    const path = (await response.json()) as string
+    paths.push(/\s/.test(path) ? `"${path}"` : path)
+  }
+  terminal.paste(paths.join(' '))
 }
 
 function applyCtrl(data: string) {

@@ -87,7 +87,7 @@ fn start_keeper(debug: bool) -> io::Result<()> {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
-        command.creation_flags(0x0000_0008 | 0x0000_0200);
+        command.creation_flags(0x0000_0008);
     }
     command.spawn()?;
     Ok(())
