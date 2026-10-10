@@ -13,6 +13,8 @@ use crate::utils::{
 };
 
 const DEFAULT: &str = include_str!("default-config.json");
+const THEMES: &str = include_str!("themes.json");
+const CUSTOM_THEME: &str = "custom";
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -22,7 +24,7 @@ pub struct Config {
     cursor: Cursor,
     padding: Padding,
     scrollback: u32,
-    colors: Colors,
+    theme: Theme,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -75,6 +77,15 @@ struct Padding {
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct Theme {
+    name: String,
+    bold_is_bright: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    colors: Option<Colors>,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 struct Colors {
     background: String,
     foreground: String,
@@ -82,8 +93,15 @@ struct Colors {
     cursor_text: String,
     selection_background: String,
     selection_foreground: String,
-    bold_is_bright: bool,
     palette: [String; 16],
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BuiltinTheme {
+    id: String,
+    name: String,
+    colors: Colors,
 }
 
 #[derive(Serialize)]
@@ -107,8 +125,29 @@ pub fn create() -> io::Result<()> {
     }
 }
 
+fn builtin_themes() -> Vec<BuiltinTheme> {
+    serde_json::from_str(THEMES).expect("built-in themes are valid")
+}
+
 fn validate(config: &Config) -> Result<(), String> {
-    let colors = &config.colors;
+    let theme = &config.theme;
+    if theme.name == CUSTOM_THEME {
+        if theme.colors.is_none() {
+            return Err("the custom theme needs colors".to_string());
+        }
+    } else if !builtin_themes()
+        .iter()
+        .any(|builtin| builtin.id == theme.name)
+    {
+        return Err(format!("unknown theme {}", theme.name));
+    }
+    match &theme.colors {
+        Some(colors) => validate_colors(colors),
+        None => Ok(()),
+    }
+}
+
+fn validate_colors(colors: &Colors) -> Result<(), String> {
     let named = [
         &colors.background,
         &colors.foreground,
@@ -157,6 +196,10 @@ pub fn save(config: Config) -> Result<Config, (StatusCode, String)> {
 
 pub async fn defaults() -> Json<Config> {
     Json(serde_json::from_str(DEFAULT).expect("default config is valid"))
+}
+
+pub async fn themes() -> Json<Vec<BuiltinTheme>> {
+    Json(builtin_themes())
 }
 
 pub async fn platform() -> Json<&'static str> {

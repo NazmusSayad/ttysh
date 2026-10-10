@@ -1,0 +1,272 @@
+[
+  {
+    "id": "one-dark-extreme",
+    "name": "One Dark Extreme",
+    "colors": {
+      "background": "#16191D",
+      "foreground": "#ABB2BF",
+      "cursor": "#FFFFFF",
+      "cursorText": "#16191D",
+      "selectionBackground": "#323842",
+      "selectionForeground": "#ABB2BF",
+      "palette": [
+        "#4A4F5A",
+        "#EE5D69",
+        "#97C775",
+        "#B68353",
+        "#61AFEF",
+        "#C678DD",
+        "#56B6C2",
+        "#CCCCCC",
+        "#616A7B",
+        "#FE808A",
+        "#C2DEAD",
+        "#D1A47A",
+        "#93CFFF",
+        "#E0A8F1",
+        "#82D2DC",
+        "#FFFFFF"
+      ]
+    }
+  },
+  {
+    "id": "dracula",
+    "name": "Dracula",
+    "colors": {
+      "background": "#282A36",
+      "foreground": "#F8F8F2",
+      "cursor": "#F8F8F2",
+      "cursorText": "#282A36",
+      "selectionBackground": "#44475A",
+      "selectionForeground": "#F8F8F2",
+      "palette": [
+        "#21222C",
+        "#FF5555",
+        "#50FA7B",
+        "#F1FA8C",
+        "#BD93F9",
+        "#FF79C6",
+        "#8BE9FD",
+        "#F8F8F2",
+        "#6272A4",
+        "#FF6E6E",
+        "#69FF94",
+        "#FFFFA5",
+        "#D6ACFF",
+        "#FF92DF",
+        "#A4FFFF",
+        "#FFFFFF"
+      ]
+    }
+  },
+  {
+    "id": "tokyo-night",
+    "name": "Tokyo Night",
+    "colors": {
+      "background": "#1A1B26",
+      "foreground": "#C0CAF5",
+      "cursor": "#C0CAF5",
+      "cursorText": "#1A1B26",
+      "selectionBackground": "#33467C",
+      "selectionForeground": "#C0CAF5",
+      "palette": [
+        "#15161E",
+        "#F7768E",
+        "#9ECE6A",
+        "#E0AF68",
+        "#7AA2F7",
+        "#BB9AF7",
+        "#7DCFFF",
+        "#A9B1D6",
+        "#414868",
+        "#F7768E",
+        "#9ECE6A",
+        "#E0AF68",
+        "#7AA2F7",
+        "#BB9AF7",
+        "#7DCFFF",
+        "#C0CAF5"
+      ]
+    }
+  },
+  {
+    "id": "catppuccin-mocha",
+    "name": "Catppuccin Mocha",
+    "colors": {
+      "background": "#1E1E2E",
+      "foreground": "#CDD6F4",
+      "cursor": "#F5E0DC",
+      "cursorText": "#1E1E2E",
+      "selectionBackground": "#585B70",
+      "selectionForeground": "#CDD6F4",
+      "palette": [
+        "#45475A",
+        "#F38BA8",
+        "#A6E3A1",
+        "#F9E2AF",
+        "#89B4FA",
+        "#F5C2E7",
+        "#94E2D5",
+        "#BAC2DE",
+        "#585B70",
+        "#F38BA8",
+        "#A6E3A1",
+        "#F9E2AF",
+        "#89B4FA",
+        "#F5C2E7",
+        "#94E2D5",
+        "#A6ADC8"
+      ]
+    }
+  },
+  {
+    "id": "nord",
+    "name": "Nord",
+    "colors": {
+      "background": "#2E3440",
+      "foreground": "#D8DEE9",
+      "cursor": "#D8DEE9",
+      "cursorText": "#2E3440",
+      "selectionBackground": "#434C5E",
+      "selectionForeground": "#D8DEE9",
+      "palette": [
+        "#3B4252",
+        "#BF616A",
+        "#A3BE8C",
+        "#EBCB8B",
+        "#81A1C1",
+        "#B48EAD",
+        "#88C0D0",
+        "#E5E9F0",
+        "#4C566A",
+        "#BF616A",
+        "#A3BE8C",
+        "#EBCB8B",
+        "#81A1C1",
+        "#B48EAD",
+        "#8FBCBB",
+        "#ECEFF4"
+      ]
+    }
+  },
+  {
+    "id": "gruvbox-dark",
+    "name": "Gruvbox Dark",
+    "colors": {
+      "background": "#282828",
+      "foreground": "#EBDBB2",
+      "cursor": "#EBDBB2",
+      "cursorText": "#282828",
+      "selectionBackground": "#504945",
+      "selectionForeground": "#EBDBB2",
+      "palette": [
+        "#282828",
+        "#CC241D",
+        "#98971A",
+        "#D79921",
+        "#458588",
+        "#B16286",
+        "#689D6A",
+        "#A89984",
+        "#928374",
+        "#FB4934",
+        "#B8BB26",
+        "#FABD2F",
+        "#83A598",
+        "#D3869B",
+        "#8EC07C",
+        "#EBDBB2"
+      ]
+    }
+  },
+  {
+    "id": "solarized-dark",
+    "name": "Solarized Dark",
+    "colors": {
+      "background": "#002B36",
+      "foreground": "#839496",
+      "cursor": "#839496",
+      "cursorText": "#002B36",
+      "selectionBackground": "#073642",
+      "selectionForeground": "#93A1A1",
+      "palette": [
+        "#073642",
+        "#DC322F",
+        "#859900",
+        "#B58900",
+        "#268BD2",
+        "#D33682",
+        "#2AA198",
+        "#EEE8D5",
+        "#002B36",
+        "#CB4B16",
+        "#586E75",
+        "#657B83",
+        "#839496",
+        "#6C71C4",
+        "#93A1A1",
+        "#FDF6E3"
+      ]
+    }
+  },
+  {
+    "id": "github-dark",
+    "name": "GitHub Dark",
+    "colors": {
+      "background": "#0D1117",
+      "foreground": "#E6EDF3",
+      "cursor": "#E6EDF3",
+      "cursorText": "#0D1117",
+      "selectionBackground": "#264F78",
+      "selectionForeground": "#E6EDF3",
+      "palette": [
+        "#484F58",
+        "#FF7B72",
+        "#3FB950",
+        "#D29922",
+        "#58A6FF",
+        "#BC8CFF",
+        "#39C5CF",
+        "#B1BAC4",
+        "#6E7681",
+        "#FFA198",
+        "#56D364",
+        "#E3B341",
+        "#79C0FF",
+        "#D2A8FF",
+        "#56D4DD",
+        "#FFFFFF"
+      ]
+    }
+  },
+  {
+    "id": "rose-pine",
+    "name": "Rosé Pine",
+    "colors": {
+      "background": "#191724",
+      "foreground": "#E0DEF4",
+      "cursor": "#E0DEF4",
+      "cursorText": "#191724",
+      "selectionBackground": "#403D52",
+      "selectionForeground": "#E0DEF4",
+      "palette": [
+        "#26233A",
+        "#EB6F92",
+        "#31748F",
+        "#F6C177",
+        "#9CCFD8",
+        "#C4A7E7",
+        "#EBBCBA",
+        "#E0DEF4",
+        "#6E6A86",
+        "#EB6F92",
+        "#31748F",
+        "#F6C177",
+        "#9CCFD8",
+        "#C4A7E7",
+        "#EBBCBA",
+        "#E0DEF4"
+      ]
+    }
+  }
+]

@@ -15,6 +15,7 @@ import {
   terminalOptions,
 } from './config'
 import { updateFavicon } from './favicon'
+import { themeColors } from './themes'
 
 type Tab = { id: number; customName: string | null }
 type Group = {
@@ -121,7 +122,7 @@ function setState(next: Partial<State>) {
   )
   const tab = group?.tabs.find((item) => item.id === group.activeTab)
   document.title = tab ? tabTitle(tab) : group ? group.name : 'sshtty'
-  updateFavicon(group ? group.logo : null, state.config.colors)
+  updateFavicon(group ? group.logo : null, themeColors(state.config.theme))
   for (const listener of listeners) listener()
 }
 
@@ -164,7 +165,7 @@ export function find(
   backwards: boolean,
   incremental: boolean
 ) {
-  const colors = state.config.colors
+  const colors = themeColors(state.config.theme)
   const options = {
     incremental,
     decorations: {

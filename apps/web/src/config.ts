@@ -1,4 +1,5 @@
 import type { ITerminalOptions } from '@xterm/xterm'
+import { themeColors } from './themes'
 
 export type Platform = 'macos' | 'linux' | 'windows'
 
@@ -10,16 +11,17 @@ export type Config = {
   cursor: { style: 'block' | 'bar' | 'underline'; blink: boolean }
   padding: { top: number; right: number; bottom: number; left: number }
   scrollback: number
-  colors: {
-    background: string
-    foreground: string
-    cursor: string
-    cursorText: string
-    selectionBackground: string
-    selectionForeground: string
-    boldIsBright: boolean
-    palette: string[]
-  }
+  theme: { name: string; boldIsBright: boolean; colors?: ThemeColors }
+}
+
+export type ThemeColors = {
+  background: string
+  foreground: string
+  cursor: string
+  cursorText: string
+  selectionBackground: string
+  selectionForeground: string
+  palette: string[]
 }
 
 const paletteKeys = [
@@ -96,11 +98,12 @@ export async function applyStyle(config: Config) {
     document.fonts.load(font),
     document.fonts.load(`bold ${font}`),
   ])
+  const colors = themeColors(config.theme)
   const style = document.documentElement.style
-  style.setProperty('--bg', config.colors.background)
-  style.setProperty('--text', config.colors.foreground)
-  style.setProperty('--brand', config.colors.palette[4])
-  style.setProperty('--danger', config.colors.palette[1])
+  style.setProperty('--bg', colors.background)
+  style.setProperty('--text', colors.foreground)
+  style.setProperty('--brand', colors.palette[4])
+  style.setProperty('--danger', colors.palette[1])
   style.setProperty('--pad-top', `${config.padding.top}px`)
   style.setProperty('--pad-right', `${config.padding.right}px`)
   style.setProperty('--pad-bottom', `${config.padding.bottom}px`)
@@ -108,7 +111,7 @@ export async function applyStyle(config: Config) {
 }
 
 export function terminalOptions(config: Config): ITerminalOptions {
-  const colors = config.colors
+  const colors = themeColors(config.theme)
   return {
     fontFamily: config.font.family,
     fontSize: config.font.size,
@@ -116,7 +119,7 @@ export function terminalOptions(config: Config): ITerminalOptions {
     cursorStyle: config.cursor.style,
     cursorBlink: config.cursor.blink,
     scrollback: config.scrollback,
-    drawBoldTextInBrightColors: colors.boldIsBright,
+    drawBoldTextInBrightColors: config.theme.boldIsBright,
     theme: {
       background: colors.background,
       foreground: colors.foreground,
