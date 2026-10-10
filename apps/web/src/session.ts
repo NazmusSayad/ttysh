@@ -1,4 +1,5 @@
 import { FitAddon } from '@xterm/addon-fit'
+import { ImageAddon } from '@xterm/addon-image'
 import { LigaturesAddon } from '@xterm/addon-ligatures'
 import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebglAddon } from '@xterm/addon-webgl'
@@ -233,6 +234,7 @@ function createSession(id: number) {
   terminal.loadAddon(fit)
   terminal.loadAddon(new Unicode11Addon())
   terminal.unicode.activeVersion = '11'
+  terminal.loadAddon(new ImageAddon())
   terminal.onData((data) => {
     if (!replaying.has(id)) sendInput(id, applyCtrl(data))
   })
