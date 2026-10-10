@@ -20,6 +20,7 @@ use axum::{
     http::StatusCode,
     response::Response,
     routing::{get, post, put},
+    serve::ListenerExt,
 };
 use tokio::sync::mpsc;
 
@@ -87,6 +88,11 @@ async fn serve(host: String, port: u16, debug: bool) {
         "listening on http://{}",
         listener.local_addr().expect("listener has an address")
     );
+    let listener = listener.tap_io(|stream| {
+        if let Err(error) = stream.set_nodelay(true) {
+            tracing::warn!("could not disable packet batching for a browser connection: {error}");
+        }
+    });
     axum::serve(listener, router).await.expect("server failed");
 }
 

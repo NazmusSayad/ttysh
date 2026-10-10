@@ -83,6 +83,12 @@ pub fn run(debug: bool) {
 }
 
 fn serve(keeper: &Shared, stream: TcpStream, number: u64) {
+    if let Err(error) = stream.set_nodelay(true) {
+        tracing::warn!(
+            connection = number,
+            "could not disable packet batching: {error}"
+        );
+    }
     let mut writer = match stream.try_clone() {
         Ok(writer) => writer,
         Err(error) => {

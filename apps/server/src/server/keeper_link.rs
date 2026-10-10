@@ -24,6 +24,9 @@ pub(super) async fn link(app: Arc<App>, mut frames: mpsc::UnboundedReceiver<Vec<
             continue;
         };
         tracing::info!("connected to the keeper");
+        if let Err(error) = stream.set_nodelay(true) {
+            tracing::warn!("could not disable packet batching to the keeper: {error}");
+        }
         let (mut reader, mut writer) = stream.into_split();
         let reading = async {
             loop {

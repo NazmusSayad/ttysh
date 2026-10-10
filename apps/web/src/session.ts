@@ -64,6 +64,7 @@ type Session = {
 }
 
 const replaying = new Set<number>()
+const typedAt = new Map<number, number>()
 const isMac = navigator.userAgent.includes('Mac')
 
 export const clientId =
@@ -214,7 +215,19 @@ function connect() {
       if (!terminal) return
       const data = new Uint8Array(event.data, 9)
       if (!replay) {
-        terminal.write(data)
+        const typed = typedAt.get(id)
+        if (typed === undefined) {
+          terminal.write(data)
+          return
+        }
+        typedAt.delete(id)
+        terminal.write(data, () =>
+          requestAnimationFrame(() =>
+            console.log(
+              `[latency] key to screen: ${(performance.now() - typed).toFixed(1)}ms`
+            )
+          )
+        )
         return
       }
       replaying.add(id)
@@ -323,7 +336,9 @@ function createSession(id: number) {
     return false
   })
   terminal.onData((data) => {
-    if (!replaying.has(id)) sendInput(id, applyCtrl(data))
+    if (replaying.has(id)) return
+    if (!typedAt.has(id)) typedAt.set(id, performance.now())
+    sendInput(id, applyCtrl(data))
   })
   terminal.onBinary((data) => {
     if (replaying.has(id)) return
