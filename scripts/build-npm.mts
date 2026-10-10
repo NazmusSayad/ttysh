@@ -6,20 +6,20 @@ const root = path.join(import.meta.dirname, '..')
 const output = path.join(root, 'dist', 'npm')
 
 const manifest = {
-  name: 'ttysh',
+  name: 'sshtty',
   version: '0.0.0',
   type: 'module',
   license: 'MIT',
   repository: {
     type: 'git',
-    url: 'git+https://github.com/NazmusSayad/ttysh.git',
+    url: 'git+https://github.com/NazmusSayad/sshtty.git',
   },
-  bin: { ttysh: 'bin/ttysh.js' },
+  bin: { sshtty: 'bin/sshtty.js' },
 }
 
 mkdirSync(path.join(output, 'bin'), { recursive: true })
 writeFileSync(
-  path.join(output, 'bin', 'ttysh.js'),
+  path.join(output, 'bin', 'sshtty.js'),
   stripTypeScriptTypes(
     readFileSync(path.join(import.meta.dirname, 'npm-launcher.mts'), 'utf8')
   )

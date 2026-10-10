@@ -37,7 +37,7 @@ pub fn paste_directory() -> PathBuf {
 }
 
 pub fn lock_file() -> PathBuf {
-    root().join("ttysh.lock")
+    root().join("sshtty.lock")
 }
 
 pub fn running_file() -> PathBuf {

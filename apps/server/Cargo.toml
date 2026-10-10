@@ -1,5 +1,5 @@
 [package]
-name = "ttysh"
+name = "sshtty"
 version = "0.0.0"
 edition = "2024"
 description = "Browser terminal with groups and tabs that keeps your shells running"

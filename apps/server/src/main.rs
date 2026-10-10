@@ -29,8 +29,8 @@ struct Cli {
         long,
         global = true,
         value_name = "DIR",
-        default_value = "~/.ttysh",
-        help = "Folder for settings, logs and the keeper; use another folder to run another ttysh"
+        default_value = "~/.sshtty",
+        help = "Folder for settings, logs and the keeper; use another folder to run another sshtty"
     )]
     config: String,
     #[command(subcommand)]
@@ -46,7 +46,7 @@ enum Command {
     },
     #[command(hide = true)]
     Keeper,
-    #[command(about = "Stop ttysh and end all its terminals")]
+    #[command(about = "Stop sshtty and end all its terminals")]
     Stop,
 }
 

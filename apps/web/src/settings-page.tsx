@@ -123,7 +123,7 @@ export function SettingsPage(props: { config: Config; platform: Platform }) {
             Settings
           </h1>
           <p className="text-muted-foreground min-w-0 truncate text-sm">
-            ~/.ttysh/config.json
+            ~/.sshtty/config.json
           </p>
           <Button
             variant="ghost"

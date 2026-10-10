@@ -15,13 +15,13 @@ pub fn run() {
         Ok(Some(_)) => false,
         Ok(None) => match stop_server() {
             Ok(running) => {
-                println!("Stopped ttysh at {}", running.url());
+                println!("Stopped sshtty at {}", running.url());
                 true
             }
             Err(error) => fail(&error),
         },
         Err(error) => fail(&format!(
-            "could not check whether ttysh is running: {error}"
+            "could not check whether sshtty is running: {error}"
         )),
     };
     let stopped_keeper = match stop_keeper() {
@@ -32,7 +32,7 @@ pub fn run() {
         println!("Stopped the keeper and ended all terminals");
     }
     if !stopped_server && !stopped_keeper {
-        println!("ttysh is not running");
+        println!("sshtty is not running");
     }
 }
 
@@ -44,7 +44,7 @@ fn fail(error: &str) -> ! {
 fn stop_server() -> Result<Running, String> {
     let running = lock::read_running()?;
     terminate(running.pid)
-        .map_err(|error| format!("could not stop ttysh (pid {}): {error}", running.pid))?;
+        .map_err(|error| format!("could not stop sshtty (pid {}): {error}", running.pid))?;
     let server = match running.host.as_str() {
         "0.0.0.0" => "127.0.0.1",
         "::" => "::1",
@@ -53,7 +53,7 @@ fn stop_server() -> Result<Running, String> {
     let deadline = Instant::now() + Duration::from_secs(10);
     while Instant::now() < deadline {
         let unlocked = lock::try_acquire()
-            .map_err(|error| format!("could not check whether ttysh stopped: {error}"))?
+            .map_err(|error| format!("could not check whether sshtty stopped: {error}"))?
             .is_some();
         if unlocked && TcpStream::connect((server, running.port)).is_err() {
             return Ok(running);
@@ -61,7 +61,7 @@ fn stop_server() -> Result<Running, String> {
         thread::sleep(Duration::from_millis(100));
     }
     Err(format!(
-        "ttysh (pid {}) did not stop within 10 seconds",
+        "sshtty (pid {}) did not stop within 10 seconds",
         running.pid
     ))
 }
@@ -95,7 +95,7 @@ fn stop_keeper() -> Result<bool, String> {
                     io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut
                 ) =>
             {
-                return Err("The keeper did not stop within 5 seconds; stop the \"ttysh keeper\" process manually.".to_string());
+                return Err("The keeper did not stop within 5 seconds; stop the \"sshtty keeper\" process manually.".to_string());
             }
             Err(error) => return Err(format!("could not wait for the keeper: {error}")),
         }

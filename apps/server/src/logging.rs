@@ -48,7 +48,7 @@ pub fn init(file_name: &str, debug: bool, console: bool) {
     tracing_subscriber::registry()
         .with(
             Targets::new()
-                .with_target("ttysh", level)
+                .with_target("sshtty", level)
                 .with_default(LevelFilter::WARN),
         )
         .with(file_layer)

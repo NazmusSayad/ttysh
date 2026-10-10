@@ -1,7 +1,7 @@
 import type { Config } from '@/config'
 
 const size = 64
-const storageKey = 'ttysh-favicons'
+const storageKey = 'sshtty-favicons'
 const limit = 32
 const cache = new Map<string, string>(readStored())
 let current = ''

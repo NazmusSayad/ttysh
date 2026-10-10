@@ -982,6 +982,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "sshtty"
+version = "0.0.0"
+dependencies = [
+ "axum",
+ "clap",
+ "dirs",
+ "futures-util",
+ "libc",
+ "portable-pty",
+ "rust-embed",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "windows-sys",
+]
+
+[[package]]
 name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1188,25 +1207,6 @@ dependencies = [
  "thread_local",
  "tracing-core",
  "tracing-log",
-]
-
-[[package]]
-name = "ttysh"
-version = "0.0.0"
-dependencies = [
- "axum",
- "clap",
- "dirs",
- "futures-util",
- "libc",
- "portable-pty",
- "rust-embed",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "windows-sys",
 ]
 
 [[package]]

@@ -3,17 +3,17 @@ import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 
 const binaries: Record<string, string> = {
-  'darwin-arm64': 'ttysh',
-  'darwin-x64': 'ttysh',
-  'linux-arm64': 'ttysh',
-  'linux-x64': 'ttysh',
-  'win32-x64': 'ttysh.exe',
+  'darwin-arm64': 'sshtty',
+  'darwin-x64': 'sshtty',
+  'linux-arm64': 'sshtty',
+  'linux-x64': 'sshtty',
+  'win32-x64': 'sshtty.exe',
 }
 
 const target = `${process.platform}-${process.arch}`
 const binary = binaries[target]
 if (!binary) {
-  console.error(`ttysh does not support ${target}`)
+  console.error(`sshtty does not support ${target}`)
   process.exit(1)
 }
 
