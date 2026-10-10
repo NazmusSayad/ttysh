@@ -42,7 +42,7 @@ impl Default for Behavior {
         Behavior {
             shift_enter_newline: true,
             show_git_branch: true,
-            capture_shortcuts: false,
+            capture_shortcuts: true,
         }
     }
 }

@@ -37,6 +37,6 @@
   "behavior": {
     "shiftEnterNewline": true,
     "showGitBranch": true,
-    "captureShortcuts": false
+    "captureShortcuts": true
   }
 }
