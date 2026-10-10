@@ -1,6 +1,6 @@
 import { ArrowLeft01Icon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { type ReactNode, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +35,7 @@ import {
 } from '@/config'
 import { cn } from '@/lib/utils'
 import { RestartRows } from '@/restart'
+import { Row, Section } from '@/settings-layout'
 import { ShellInput } from '@/shell-input'
 import { customTheme, getThemes, themeColors } from '@/themes'
 
@@ -272,6 +273,14 @@ export function SettingsPage(props: { config: Config; platform: Platform }) {
               }
             />
           </Row>
+          <Row label="Show the git branch in tab titles">
+            <Switch
+              checked={draft.behavior.showGitBranch}
+              onCheckedChange={(showGitBranch) =>
+                update('behavior', { showGitBranch })
+              }
+            />
+          </Row>
         </Section>
         <Section title="Layout">
           {(['top', 'right', 'bottom', 'left'] as const).map((side) => (
@@ -394,29 +403,6 @@ export function SettingsPage(props: { config: Config; platform: Platform }) {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
-}
-
-function Section(props: { title: string; note?: string; children: ReactNode }) {
-  return (
-    <section>
-      <h2 className="text-muted-foreground mb-2 px-1 text-xs font-medium">
-        {props.title}
-        {props.note && <span className="font-normal"> · {props.note}</span>}
-      </h2>
-      <div className="bg-card divide-y overflow-hidden rounded-xl border">
-        {props.children}
-      </div>
-    </section>
-  )
-}
-
-function Row(props: { label: string; children: ReactNode }) {
-  return (
-    <label className="flex min-h-13 items-center justify-between gap-4 px-4 py-2.5">
-      <span className="text-sm font-medium">{props.label}</span>
-      <div className="shrink-0">{props.children}</div>
-    </label>
   )
 }
 

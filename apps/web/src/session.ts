@@ -34,6 +34,7 @@ type State = {
   config: Config
   platform: Platform
   titles: Record<number, string>
+  branches: Record<number, string>
   progress: Record<number, IProgressState>
   finding: number | null
 }
@@ -50,10 +51,16 @@ type Request =
   | { type: 'resize'; id: number; cols: number; rows: number }
 
 type Message =
-  | { type: 'active'; layout: Layout; instance: string }
+  | {
+      type: 'active'
+      layout: Layout
+      instance: string
+      branches: Record<number, string>
+    }
   | { type: 'layout'; layout: Layout }
   | { type: 'paused' }
   | { type: 'config'; config: Config }
+  | { type: 'branch'; id: number; branch: string | null }
 
 type Session = {
   terminal: Terminal
@@ -88,6 +95,7 @@ export function start(config: Config, platform: Platform) {
     config,
     platform,
     titles: {},
+    branches: {},
     progress: {},
     finding: null,
   }
@@ -250,6 +258,13 @@ function handle(message: Message) {
     void applyConfig(message.config)
     return
   }
+  if (message.type === 'branch') {
+    const branches = { ...state.branches }
+    if (message.branch === null) delete branches[message.id]
+    else branches[message.id] = message.branch
+    setState({ branches })
+    return
+  }
   if (message.type === 'paused') {
     setState({ status: 'paused' })
     return
@@ -267,6 +282,14 @@ function handle(message: Message) {
     sessions.forEach((session, id) => {
       if (session.terminal.element) reportSize(id, session.terminal)
     })
+  }
+  if (message.type === 'active') {
+    setState({
+      status: 'active',
+      layout: message.layout,
+      branches: message.branches,
+    })
+    return
   }
   setState({ status: 'active', layout: message.layout })
 }

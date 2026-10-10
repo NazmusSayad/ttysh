@@ -30,15 +30,17 @@ pub struct Config {
 }
 
 #[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields, rename_all = "camelCase")]
+#[serde(default, deny_unknown_fields, rename_all = "camelCase")]
 struct Behavior {
     shift_enter_newline: bool,
+    show_git_branch: bool,
 }
 
 impl Default for Behavior {
     fn default() -> Self {
         Behavior {
             shift_enter_newline: true,
+            show_git_branch: true,
         }
     }
 }

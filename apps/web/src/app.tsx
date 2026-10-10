@@ -3,6 +3,7 @@ import {
   Cancel01Icon,
   Delete02Icon,
   Folder01Icon,
+  GitBranchIcon,
   ImageAdd01Icon,
   ImageRemove01Icon,
   Menu01Icon,
@@ -254,6 +255,18 @@ export function App() {
                       }
                     >
                       <span className="truncate">{tabTitle(tab)}</span>
+                      {state.config.behavior.showGitBranch &&
+                        state.branches[tab.id] && (
+                          <span className="ml-2 flex min-w-0 flex-none items-center gap-1 opacity-60">
+                            <HugeiconsIcon
+                              icon={GitBranchIcon}
+                              className="size-3 flex-none"
+                            />
+                            <span className="max-w-40 truncate">
+                              {state.branches[tab.id]}
+                            </span>
+                          </span>
+                        )}
                       <TabProgress progress={state.progress[tab.id]} />
                       <button
                         className={cn(

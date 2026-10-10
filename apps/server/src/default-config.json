@@ -35,6 +35,7 @@
     "boldIsBright": true
   },
   "behavior": {
-    "shiftEnterNewline": true
+    "shiftEnterNewline": true,
+    "showGitBranch": true
   }
 }
