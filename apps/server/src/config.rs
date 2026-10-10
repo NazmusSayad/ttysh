@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::utils::{
     fs::write_atomic,
-    paths::{data_directory, expand_home},
+    paths::{self, expand_home},
 };
 
 const DEFAULT: &str = include_str!("default-config.json");
@@ -94,16 +94,12 @@ pub struct Launch {
     pub cwd_from: Option<u64>,
 }
 
-fn path() -> PathBuf {
-    data_directory().join("config.json")
-}
-
 pub fn create() -> io::Result<()> {
-    fs::create_dir_all(data_directory())?;
+    fs::create_dir_all(paths::root())?;
     match fs::OpenOptions::new()
         .write(true)
         .create_new(true)
-        .open(path())
+        .open(paths::config_file())
     {
         Ok(mut file) => file.write_all(DEFAULT.as_bytes()),
         Err(error) if error.kind() == io::ErrorKind::AlreadyExists => Ok(()),
@@ -135,7 +131,7 @@ fn validate(config: &Config) -> Result<(), String> {
 }
 
 fn read() -> Result<Config, String> {
-    let path = path();
+    let path = paths::config_file();
     let text = fs::read_to_string(&path)
         .map_err(|error| format!("could not read {}: {error}", path.display()))?;
     let config: Config = serde_json::from_str(&text)
@@ -154,7 +150,7 @@ pub fn save(config: Config) -> Result<Config, (StatusCode, String)> {
     validate(&config).map_err(|error| (StatusCode::BAD_REQUEST, error))?;
     let mut text = serde_json::to_string_pretty(&config).expect("config serializes");
     text.push('\n');
-    write_atomic(&path(), text.as_bytes())
+    write_atomic(&paths::config_file(), text.as_bytes())
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
     Ok(config)
 }

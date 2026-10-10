@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     frame,
-    lock::{self, Running},
+    lock::{self, Keeper, Running},
 };
 
 pub fn run() {
@@ -67,11 +67,16 @@ fn stop_server() -> Result<Running, String> {
 }
 
 fn stop_keeper() -> Result<bool, String> {
-    let mut stream = match TcpStream::connect(("127.0.0.1", crate::KEEPER_PORT)) {
-        Ok(stream) => stream,
-        Err(error) if error.kind() == io::ErrorKind::ConnectionRefused => return Ok(false),
-        Err(error) => return Err(format!("could not reach the keeper: {error}")),
+    let port = match lock::keeper() {
+        Ok(Keeper::Running(port)) => port,
+        Ok(Keeper::Stopped) => return Ok(false),
+        Ok(Keeper::Starting) => {
+            return Err("The keeper is still starting; try again in a moment.".to_string());
+        }
+        Err(error) => return Err(format!("could not check the keeper: {error}")),
     };
+    let mut stream = TcpStream::connect(("127.0.0.1", port))
+        .map_err(|error| format!("could not reach the keeper: {error}"))?;
     stream
         .write_all(&frame::encode(frame::SHUTDOWN, 0, &[]))
         .map_err(|error| format!("could not reach the keeper: {error}"))?;
@@ -90,7 +95,7 @@ fn stop_keeper() -> Result<bool, String> {
                     io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut
                 ) =>
             {
-                return Err("The keeper did not stop within 5 seconds. It may be from an older ttysh version; stop the \"ttysh keeper\" process manually.".to_string());
+                return Err("The keeper did not stop within 5 seconds; stop the \"ttysh keeper\" process manually.".to_string());
             }
             Err(error) => return Err(format!("could not wait for the keeper: {error}")),
         }

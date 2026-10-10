@@ -12,7 +12,7 @@ use serde::Deserialize;
 
 use crate::{
     frame::{self, Frame},
-    logging,
+    lock, logging,
     utils::process::current_directory,
 };
 
@@ -59,9 +59,17 @@ pub fn run(debug: bool) {
             std::io::Error::last_os_error()
         );
     }
-    let listener = TcpListener::bind(("127.0.0.1", crate::KEEPER_PORT))
-        .expect("keeper could not bind its port");
-    tracing::info!("listening on 127.0.0.1:{}", crate::KEEPER_PORT);
+    let Some(_lock) = lock::try_acquire_keeper().expect("keeper could not open its lock") else {
+        tracing::info!("another keeper is running for this folder, exiting");
+        return;
+    };
+    let listener = TcpListener::bind(("127.0.0.1", 0)).expect("keeper could not bind a port");
+    let port = listener
+        .local_addr()
+        .expect("keeper could not read its port")
+        .port();
+    lock::write_keeper_port(port).expect("keeper could not write its port");
+    tracing::info!("listening on 127.0.0.1:{port}");
     let keeper = Shared::default();
     for (number, stream) in listener.incoming().enumerate() {
         match stream {

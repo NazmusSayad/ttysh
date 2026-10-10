@@ -3,6 +3,7 @@ use std::process::{self, Command, Stdio};
 use crate::{
     lock::{self, Running},
     logging,
+    utils::paths,
 };
 
 pub const RESTART_CODE: i32 = 75;
@@ -44,6 +45,7 @@ pub fn run(host: &str, port: u16, debug: bool) {
     loop {
         let mut command = Command::new(&executable);
         command.args(["--host", host, "--port", &port.to_string()]);
+        command.arg("--config").arg(paths::root());
         if debug {
             command.arg("--debug");
         }

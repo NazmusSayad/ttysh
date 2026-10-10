@@ -23,7 +23,7 @@ use axum::{
 };
 use tokio::sync::mpsc;
 
-use crate::{config, logging, utils::paths::data_directory};
+use crate::{config, logging, utils::paths};
 use app::App;
 
 pub fn run(host: String, port: u16, debug: bool, session: &str) {
@@ -48,11 +48,7 @@ pub fn run(host: String, port: u16, debug: bool, session: &str) {
 async fn serve(host: String, port: u16, debug: bool) {
     config::create().expect("could not create the config file");
     let (keeper, frames) = mpsc::unbounded_channel();
-    let app = Arc::new(App::new(
-        data_directory().join("layout.json"),
-        keeper,
-        debug,
-    ));
+    let app = Arc::new(App::new(paths::layout_file(), keeper, debug));
     tokio::spawn(keeper_link::link(app.clone(), frames));
     let mut router = Router::new()
         .route("/ws", get(socket))

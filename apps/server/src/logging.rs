@@ -1,8 +1,6 @@
 use std::{
     fs::{self, OpenOptions},
-    io,
-    path::PathBuf,
-    process,
+    io, process,
     sync::Mutex,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -14,11 +12,7 @@ use tracing_subscriber::{
     util::SubscriberInitExt,
 };
 
-use crate::utils::paths::data_directory;
-
-pub fn directory() -> PathBuf {
-    data_directory().join("logs")
-}
+use crate::utils::paths;
 
 pub fn run_id() -> String {
     let started = SystemTime::now()
@@ -29,7 +23,7 @@ pub fn run_id() -> String {
 }
 
 pub fn init(file_name: &str, debug: bool, console: bool) {
-    let directory = directory();
+    let directory = paths::logs_directory();
     fs::create_dir_all(&directory).expect("could not create the log directory");
     let path = directory.join(file_name);
     let file = OpenOptions::new()
