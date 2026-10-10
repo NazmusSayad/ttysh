@@ -504,7 +504,7 @@ impl App {
         self.stopping.store(false, Ordering::SeqCst);
         let mut inner = self.inner.lock().unwrap();
         self.reset(&mut inner);
-        Err("The keeper did not stop within 5 seconds. It may be from an older ttysh version; stop the \"ttysh keeper\" process manually and try again.".to_string())
+        Err("The keeper did not stop within 5 seconds. It may be from an older sshtty version; stop the \"sshtty keeper\" process manually and try again.".to_string())
     }
 
     pub(super) fn publish_config(&self, config: &config::Config) {

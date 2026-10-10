@@ -16,23 +16,23 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             npm: darwin-arm64
-            binary: ttysh
+            binary: sshtty
           - os: macos-latest
             target: x86_64-apple-darwin
             npm: darwin-x64
-            binary: ttysh
+            binary: sshtty
           - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             npm: linux-x64
-            binary: ttysh
+            binary: sshtty
           - os: ubuntu-22.04-arm
             target: aarch64-unknown-linux-gnu
             npm: linux-arm64
-            binary: ttysh
+            binary: sshtty
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             npm: win32-x64
-            binary: ttysh.exe
+            binary: sshtty.exe
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -72,7 +72,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: dist/npm/bin
-      - run: chmod +x dist/npm/bin/*/ttysh
+      - run: chmod +x dist/npm/bin/*/sshtty
 
       - run: npm publish --access public --tag ${{ github.event.release.prerelease && 'next' || 'latest' }}
         working-directory: dist/npm

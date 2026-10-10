@@ -10,6 +10,7 @@ import {
   Settings01Icon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
+import type { IProgressState } from '@xterm/addon-progress'
 import {
   type ReactNode,
   useEffect,
@@ -35,6 +36,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
 import { EmptyState } from '@/empty-state'
+import { FindBar } from '@/find-bar'
 import { cn } from '@/lib/utils'
 import { FolderDialog, RenameDialog } from '@/prompt-dialogs'
 import {
@@ -252,6 +254,7 @@ export function App() {
                       }
                     >
                       <span className="truncate">{tabTitle(tab)}</span>
+                      <TabProgress progress={state.progress[tab.id]} />
                       <button
                         className={cn(
                           'absolute left-1.5 grid size-4.5 place-items-center rounded text-muted-foreground opacity-0 transition-opacity group-hover/tab:opacity-100 hover:bg-accent hover:text-foreground',
@@ -285,6 +288,9 @@ export function App() {
         </header>
         <div className="relative min-h-0 flex-1">
           {tabId !== null && <TerminalPane key={tabId} id={tabId} />}
+          {tabId !== null && state.finding === tabId && (
+            <FindBar key={tabId} id={tabId} />
+          )}
           {state.status === 'active' && !group && (
             <EmptyState
               label="New group"
@@ -401,6 +407,28 @@ function TerminalPane(props: { id: number }) {
     <div
       className="bg-background absolute inset-0 pt-(--pad-top) pr-(--pad-right) pb-(--pad-bottom) pl-(--pad-left)"
       ref={container}
+    />
+  )
+}
+
+function TabProgress(props: { progress: IProgressState | undefined }) {
+  const progress = props.progress
+  if (!progress || progress.state === 0) return null
+  if (progress.state === 3)
+    return (
+      <span className="bg-primary absolute inset-x-0 bottom-0 h-0.5 animate-pulse" />
+    )
+  return (
+    <span
+      className={cn(
+        'absolute bottom-0 left-0 h-0.5 transition-[width]',
+        progress.state === 1 && 'bg-primary',
+        progress.state === 2 && 'bg-destructive',
+        progress.state === 4 && 'bg-yellow-500'
+      )}
+      style={{
+        width: `${progress.state !== 1 && progress.value === 0 ? 100 : progress.value}%`,
+      }}
     />
   )
 }

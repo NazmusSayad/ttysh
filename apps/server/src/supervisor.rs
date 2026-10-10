@@ -3,6 +3,7 @@ use std::process::{self, Command, Stdio};
 use crate::{
     lock::{self, Running},
     logging,
+    utils::paths,
 };
 
 pub const RESTART_CODE: i32 = 75;
@@ -12,14 +13,14 @@ pub fn run(host: &str, port: u16, debug: bool) {
         Ok(Some(lock)) => lock,
         Ok(None) => {
             match lock::read_running() {
-                Ok(running) => eprintln!("ttysh is already running at {}", running.url()),
-                Err(error) => eprintln!("ttysh is already running ({error})"),
+                Ok(running) => eprintln!("sshtty is already running at {}", running.url()),
+                Err(error) => eprintln!("sshtty is already running ({error})"),
             }
-            eprintln!("Open it in your browser, or run `ttysh stop` to stop it first.");
+            eprintln!("Open it in your browser, or run `sshtty stop` to stop it first.");
             process::exit(1);
         }
         Err(error) => {
-            eprintln!("could not check whether ttysh is already running: {error}");
+            eprintln!("could not check whether sshtty is already running: {error}");
             process::exit(1);
         }
     };
@@ -31,19 +32,20 @@ pub fn run(host: &str, port: u16, debug: bool) {
         port,
     };
     if let Err(error) = lock::write_running(&running) {
-        tracing::error!("could not record the running ttysh: {error}");
+        tracing::error!("could not record the running sshtty: {error}");
         process::exit(1);
     }
     let executable = match std::env::current_exe() {
         Ok(executable) => executable,
         Err(error) => {
-            tracing::error!("could not find the ttysh executable: {error}");
+            tracing::error!("could not find the sshtty executable: {error}");
             process::exit(1);
         }
     };
     loop {
         let mut command = Command::new(&executable);
         command.args(["--host", host, "--port", &port.to_string()]);
+        command.arg("--config").arg(paths::root());
         if debug {
             command.arg("--debug");
         }

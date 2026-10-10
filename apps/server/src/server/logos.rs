@@ -1,6 +1,5 @@
 use std::{
     fs,
-    path::PathBuf,
     sync::Arc,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -13,7 +12,7 @@ use axum::{
 };
 
 use super::app::App;
-use crate::utils::paths::data_directory;
+use crate::utils::paths;
 
 const TYPES: [(&str, &str); 7] = [
     ("image/png", "png"),
@@ -25,12 +24,8 @@ const TYPES: [(&str, &str); 7] = [
     ("image/vnd.microsoft.icon", "ico"),
 ];
 
-fn directory() -> PathBuf {
-    data_directory().join("logos")
-}
-
 pub(super) fn delete(file: &str) {
-    if let Err(error) = fs::remove_file(directory().join(file)) {
+    if let Err(error) = fs::remove_file(paths::logos_directory().join(file)) {
         tracing::warn!("could not delete logo {file}: {error}");
     }
 }
@@ -56,8 +51,8 @@ pub(super) async fn upload(
         .as_millis();
     let file = format!("{group_id}-{stamp}.{extension}");
     let failed = |error: std::io::Error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string());
-    fs::create_dir_all(directory()).map_err(failed)?;
-    fs::write(directory().join(&file), &body).map_err(failed)?;
+    fs::create_dir_all(paths::logos_directory()).map_err(failed)?;
+    fs::write(paths::logos_directory().join(&file), &body).map_err(failed)?;
     match app.replace_logo(group_id, Some(file.clone())) {
         Ok(Some(previous)) => delete(&previous),
         Ok(None) => {}
@@ -89,7 +84,7 @@ pub(super) async fn serve(State(app): State<Arc<App>>, Path(file): Path<String>)
     else {
         return StatusCode::NOT_FOUND.into_response();
     };
-    match fs::read(directory().join(&file)) {
+    match fs::read(paths::logos_directory().join(&file)) {
         Ok(bytes) => (
             [
                 (header::CONTENT_TYPE, *content_type),

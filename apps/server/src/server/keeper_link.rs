@@ -8,7 +8,11 @@ use std::{
 use tokio::{io::AsyncWriteExt, net::TcpStream, sync::mpsc};
 
 use super::app::App;
-use crate::frame;
+use crate::{
+    frame,
+    lock::{self, Keeper},
+    utils::paths,
+};
 
 pub(super) async fn link(app: Arc<App>, mut frames: mpsc::UnboundedReceiver<Vec<u8>>) {
     loop {
@@ -52,25 +56,40 @@ async fn connect_keeper(app: &App) -> Option<TcpStream> {
         if app.stopping.load(Ordering::SeqCst) {
             return None;
         }
-        if let Ok(stream) = TcpStream::connect(("127.0.0.1", crate::KEEPER_PORT)).await {
-            return Some(stream);
-        }
-        tracing::info!("keeper is not running, starting it");
-        if let Err(error) = start_keeper(app.debug) {
-            tracing::error!("could not start keeper: {error}");
-        }
-        for _ in 0..50 {
-            tokio::time::sleep(Duration::from_millis(100)).await;
-            if let Ok(stream) = TcpStream::connect(("127.0.0.1", crate::KEEPER_PORT)).await {
-                return Some(stream);
+        match lock::keeper() {
+            Ok(Keeper::Running(port)) => match TcpStream::connect(("127.0.0.1", port)).await {
+                Ok(stream) => return Some(stream),
+                Err(error) => {
+                    tracing::warn!("could not connect to the keeper on port {port}: {error}");
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                }
+            },
+            Ok(Keeper::Starting) => tokio::time::sleep(Duration::from_millis(100)).await,
+            Ok(Keeper::Stopped) => {
+                tracing::info!("keeper is not running, starting it");
+                if let Err(error) =
+                    lock::remove_keeper_port().and_then(|()| start_keeper(app.debug))
+                {
+                    tracing::error!("could not start keeper: {error}");
+                }
+                for _ in 0..50 {
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                    if !matches!(lock::keeper(), Ok(Keeper::Stopped)) {
+                        break;
+                    }
+                }
+            }
+            Err(error) => {
+                tracing::error!("could not check the keeper: {error}");
+                tokio::time::sleep(Duration::from_secs(1)).await;
             }
         }
-        tracing::warn!("keeper did not start in time, trying again");
     }
 }
 
 fn start_keeper(debug: bool) -> io::Result<()> {
     let mut command = Command::new(std::env::current_exe()?);
+    command.arg("--config").arg(paths::root());
     if debug {
         command.arg("--debug");
     }

@@ -37,7 +37,7 @@ async function restart(scope: Scope) {
     }
   }
   throw new Error(
-    'ttysh did not come back within 30 seconds. Check the terminal where it was started.'
+    'sshtty did not come back within 30 seconds. Check the terminal where it was started.'
   )
 }
 

@@ -3,7 +3,7 @@ use std::{fs, time::UNIX_EPOCH};
 use axum::{Json, extract::Path, http::StatusCode};
 use serde::Serialize;
 
-use crate::logging;
+use crate::utils::paths;
 
 #[derive(Serialize)]
 pub(super) struct LogFile {
@@ -15,7 +15,7 @@ pub(super) struct LogFile {
 pub(super) async fn list() -> Result<Json<Vec<LogFile>>, (StatusCode, String)> {
     let failed = |error: std::io::Error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string());
     let mut files = Vec::new();
-    for entry in fs::read_dir(logging::directory()).map_err(failed)? {
+    for entry in fs::read_dir(paths::logs_directory()).map_err(failed)? {
         let entry = entry.map_err(failed)?;
         let metadata = entry.metadata().map_err(failed)?;
         files.push(LogFile {
@@ -42,7 +42,7 @@ pub(super) async fn file(Path(file): Path<String>) -> Result<String, (StatusCode
     if !valid {
         return Err((StatusCode::BAD_REQUEST, format!("invalid log file {file}")));
     }
-    fs::read_to_string(logging::directory().join(&file)).map_err(|error| match error.kind() {
+    fs::read_to_string(paths::logs_directory().join(&file)).map_err(|error| match error.kind() {
         std::io::ErrorKind::NotFound => (StatusCode::NOT_FOUND, format!("no log file {file}")),
         _ => (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()),
     })

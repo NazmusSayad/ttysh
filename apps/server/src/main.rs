@@ -10,7 +10,7 @@ mod utils;
 
 use clap::{Parser, Subcommand};
 
-const KEEPER_PORT: u16 = 47832;
+use crate::utils::paths;
 
 #[derive(Parser)]
 #[command(version, about)]
@@ -25,6 +25,14 @@ struct Cli {
         help = "Write detailed logs and serve them at /api/debug/logs"
     )]
     debug: bool,
+    #[arg(
+        long,
+        global = true,
+        value_name = "DIR",
+        default_value = "~/.sshtty",
+        help = "Folder for settings, logs and the keeper; use another folder to run another sshtty"
+    )]
+    config: String,
     #[command(subcommand)]
     command: Option<Command>,
 }
@@ -38,12 +46,16 @@ enum Command {
     },
     #[command(hide = true)]
     Keeper,
-    #[command(about = "Stop ttysh and end all its terminals")]
+    #[command(about = "Stop sshtty and end all its terminals")]
     Stop,
 }
 
 fn main() {
     let cli = Cli::parse();
+    paths::init(
+        std::path::absolute(paths::expand_home(&cli.config))
+            .expect("could not resolve the config folder"),
+    );
     match cli.command {
         None => supervisor::run(&cli.host, cli.port, cli.debug),
         Some(Command::Server { session }) => server::run(cli.host, cli.port, cli.debug, &session),

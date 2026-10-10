@@ -9,7 +9,7 @@ use axum::{
     http::{HeaderMap, StatusCode, header},
 };
 
-use crate::utils::paths::data_directory;
+use crate::utils::paths;
 
 const TYPES: [(&str, &str); 4] = [
     ("image/png", "png"),
@@ -35,7 +35,7 @@ pub(super) async fn upload(
         .duration_since(UNIX_EPOCH)
         .expect("clock is after 1970")
         .as_nanos();
-    let directory = data_directory().join("cache").join("paste");
+    let directory = paths::paste_directory();
     let path = directory.join(format!("{stamp}.{extension}"));
     let failed = |error: std::io::Error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string());
     fs::create_dir_all(&directory).map_err(failed)?;
