@@ -1,5 +1,6 @@
 import { FitAddon } from '@xterm/addon-fit'
 import { LigaturesAddon } from '@xterm/addon-ligatures'
+import { Unicode11Addon } from '@xterm/addon-unicode11'
 import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal } from '@xterm/xterm'
 import {
@@ -230,6 +231,8 @@ function createSession(id: number) {
   })
   const fit = new FitAddon()
   terminal.loadAddon(fit)
+  terminal.loadAddon(new Unicode11Addon())
+  terminal.unicode.activeVersion = '11'
   terminal.onData((data) => {
     if (!replaying.has(id)) sendInput(id, applyCtrl(data))
   })
