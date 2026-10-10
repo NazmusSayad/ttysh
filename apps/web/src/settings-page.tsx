@@ -263,12 +263,12 @@ export function SettingsPage(props: { config: Config; platform: Platform }) {
             />
           </Row>
         </Section>
-        <Section title="Keyboard">
+        <Section title="Behavior">
           <Row label="Shift+Enter inserts a new line">
             <Switch
-              checked={draft.keyboard.shiftEnterNewline}
+              checked={draft.behavior.shiftEnterNewline}
               onCheckedChange={(shiftEnterNewline) =>
-                update('keyboard', { shiftEnterNewline })
+                update('behavior', { shiftEnterNewline })
               }
             />
           </Row>

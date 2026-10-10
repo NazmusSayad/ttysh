@@ -26,18 +26,18 @@ pub struct Config {
     scrollback: u32,
     theme: Theme,
     #[serde(default)]
-    keyboard: Keyboard,
+    behavior: Behavior,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
-struct Keyboard {
+struct Behavior {
     shift_enter_newline: bool,
 }
 
-impl Default for Keyboard {
+impl Default for Behavior {
     fn default() -> Self {
-        Keyboard {
+        Behavior {
             shift_enter_newline: true,
         }
     }

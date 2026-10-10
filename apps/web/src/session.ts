@@ -340,7 +340,7 @@ function createSession(id: number) {
   )
   terminal.attachCustomKeyEventHandler((event) => {
     if (event.type !== 'keydown') return true
-    if (state.config.keyboard.shiftEnterNewline && isShiftEnter(event)) {
+    if (state.config.behavior.shiftEnterNewline && isShiftEnter(event)) {
       event.preventDefault()
       sendInput(id, '\x1b\r')
       return false

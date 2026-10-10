@@ -34,7 +34,7 @@
     "name": "one-dark-darker",
     "boldIsBright": true
   },
-  "keyboard": {
+  "behavior": {
     "shiftEnterNewline": true
   }
 }
