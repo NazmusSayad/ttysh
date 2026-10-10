@@ -54,6 +54,7 @@ async fn serve(host: String, port: u16, debug: bool) {
         .route("/ws", get(socket))
         .route("/api/config", get(config::handler).put(save_config))
         .route("/api/config/defaults", get(config::defaults))
+        .route("/api/themes", get(config::themes))
         .route("/api/platform", get(config::platform))
         .route("/api/directories", get(directories::list))
         .route("/api/shells", get(shells::list))

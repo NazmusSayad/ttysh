@@ -31,15 +31,15 @@ import {
   platforms,
   saveConfig,
   type Shell,
+  type ThemeColors,
 } from '@/config'
 import { cn } from '@/lib/utils'
 import { RestartRows } from '@/restart'
 import { ShellInput } from '@/shell-input'
-
-type Colors = Config['colors']
+import { customTheme, getThemes, themeColors } from '@/themes'
 
 const namedColors: {
-  key: Exclude<keyof Colors, 'palette' | 'boldIsBright'>
+  key: Exclude<keyof ThemeColors, 'palette'>
   label: string
 }[] = [
   { key: 'background', label: 'Background' },
@@ -60,6 +60,8 @@ export function SettingsPage(props: { config: Config; platform: Platform }) {
   const [error, setError] = useState<string | null>(null)
   const [platform, setPlatform] = useState(props.platform)
   const shell = draft.shell[platform]
+  const customColors =
+    draft.theme.name === customTheme ? draft.theme.colors : undefined
   const timer = useRef<number | undefined>(undefined)
   const [confirming, setConfirming] = useState(false)
   const [revision, setRevision] = useState(0)
@@ -88,6 +90,11 @@ export function SettingsPage(props: { config: Config; platform: Platform }) {
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure))
     }
+  }
+
+  function updateColors(value: Partial<ThemeColors>) {
+    if (!draft.theme.colors) throw new Error('the custom theme has no colors')
+    update('theme', { colors: { ...draft.theme.colors, ...value } })
   }
 
   function updateShell(value: Partial<Shell>) {
@@ -273,53 +280,85 @@ export function SettingsPage(props: { config: Config; platform: Platform }) {
             />
           </Row>
         </Section>
-        <Section title="Colors">
-          {namedColors.map((color) => (
-            <Row key={color.key} label={color.label}>
-              <ColorInput
-                label={color.label}
-                value={draft.colors[color.key]}
-                onCommit={(value) => update('colors', { [color.key]: value })}
-              />
-            </Row>
-          ))}
+        <Section title="Theme">
+          <Row label="Theme">
+            <Select
+              value={draft.theme.name}
+              onValueChange={(name) =>
+                update('theme', {
+                  name,
+                  colors:
+                    name === customTheme
+                      ? (draft.theme.colors ?? themeColors(draft.theme))
+                      : draft.theme.colors,
+                })
+              }
+            >
+              <SelectTrigger className="w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {getThemes().map((item) => (
+                  <SelectItem key={item.id} value={item.id}>
+                    {item.name}
+                  </SelectItem>
+                ))}
+                <SelectItem value={customTheme}>Custom</SelectItem>
+              </SelectContent>
+            </Select>
+          </Row>
           <Row label="Bold text in bright colors">
             <Switch
-              checked={draft.colors.boldIsBright}
+              checked={draft.theme.boldIsBright}
               onCheckedChange={(boldIsBright) =>
-                update('colors', { boldIsBright })
+                update('theme', { boldIsBright })
               }
             />
           </Row>
         </Section>
-        <Section title="Palette">
-          {(['Normal', 'Bright'] as const).map((row, rowIndex) => (
-            <Row key={row} label={row}>
-              <div className="flex gap-1.5">
-                {draft.colors.palette
-                  .slice(rowIndex * 8, rowIndex * 8 + 8)
-                  .map((value, offset) => {
-                    const index = rowIndex * 8 + offset
-                    return (
-                      <Swatch
-                        key={paletteNames[index]}
-                        label={paletteNames[index]}
-                        value={value}
-                        onChange={(next) =>
-                          update('colors', {
-                            palette: draft.colors.palette.map(
-                              (item, position) =>
-                                position === index ? next : item
-                            ),
-                          })
-                        }
-                      />
-                    )
-                  })}
-              </div>
-            </Row>
-          ))}
-        </Section>
+        {customColors && (
+          <>
+            <Section title="Custom colors">
+              {namedColors.map((color) => (
+                <Row key={color.key} label={color.label}>
+                  <ColorInput
+                    label={color.label}
+                    value={customColors[color.key]}
+                    onCommit={(value) => updateColors({ [color.key]: value })}
+                  />
+                </Row>
+              ))}
+            </Section>
+            <Section title="Custom palette">
+              {(['Normal', 'Bright'] as const).map((row, rowIndex) => (
+                <Row key={row} label={row}>
+                  <div className="flex gap-1.5">
+                    {customColors.palette
+                      .slice(rowIndex * 8, rowIndex * 8 + 8)
+                      .map((value, offset) => {
+                        const index = rowIndex * 8 + offset
+                        return (
+                          <Swatch
+                            key={paletteNames[index]}
+                            label={paletteNames[index]}
+                            value={value}
+                            onChange={(next) =>
+                              updateColors({
+                                palette: customColors.palette.map(
+                                  (item, position) =>
+                                    position === index ? next : item
+                                ),
+                              })
+                            }
+                          />
+                        )
+                      })}
+                  </div>
+                </Row>
+              ))}
+            </Section>
+          </>
+        )}
         <Section title="Restart">
           <RestartRows />
         </Section>

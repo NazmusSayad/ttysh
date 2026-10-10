@@ -1,4 +1,4 @@
-import type { Config } from '@/config'
+import type { ThemeColors } from '@/config'
 
 const size = 64
 const storageKey = 'sshtty-favicons'
@@ -6,7 +6,7 @@ const limit = 32
 const cache = new Map<string, string>(readStored())
 let current = ''
 
-export function updateFavicon(logo: string | null, colors: Config['colors']) {
+export function updateFavicon(logo: string | null, colors: ThemeColors) {
   const key = `${logo}|${colors.background}|${colors.foreground}`
   if (key === current) return
   current = key
@@ -40,7 +40,7 @@ function remember(key: string, url: string) {
   localStorage.setItem(storageKey, JSON.stringify([...cache]))
 }
 
-async function draw(logo: string | null, colors: Config['colors']) {
+async function draw(logo: string | null, colors: ThemeColors) {
   const canvas = document.createElement('canvas')
   canvas.width = size
   canvas.height = size
@@ -82,7 +82,7 @@ function drawBadge(
   context: CanvasRenderingContext2D,
   offset: number,
   extent: number,
-  colors: Config['colors']
+  colors: ThemeColors
 ) {
   function point(x: number, y: number) {
     return [offset + x * extent, offset + y * extent] as const

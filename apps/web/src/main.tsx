@@ -6,13 +6,18 @@ import { App } from './app'
 import { applyStyle, loadConfig, loadPlatform } from './config'
 import { start } from './session'
 import { SettingsPage } from './settings-page'
+import { loadThemes } from './themes'
 
 const root = document.getElementById('root')
 if (!root) throw new Error('root element missing')
 
 async function main(container: HTMLElement) {
   try {
-    const [config, platform] = await Promise.all([loadConfig(), loadPlatform()])
+    const [config, platform] = await Promise.all([
+      loadConfig(),
+      loadPlatform(),
+      loadThemes(),
+    ])
     await applyStyle(config)
     if (location.pathname === '/settings') {
       document.title = 'Settings'
